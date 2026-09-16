@@ -1,0 +1,2 @@
+# Mantém quebras de linha LF em todos os arquivos (o servidor é Linux).
+* text=auto eol=lf
