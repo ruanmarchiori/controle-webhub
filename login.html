@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar | Controle WebHub</title>
+<script src="js/theme.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark">CW</div>
+      <span class="brand-name">Controle WebHub</span>
+    </div>
+    <h1>Entrar</h1>
+    <p class="auth-sub">Acesso restrito a uma única conta.</p>
+
+    <form class="auth-form" id="loginForm">
+      <label class="field">
+        <span>E-mail</span>
+        <input type="email" name="email" required autocomplete="username" placeholder="seu@email.com">
+      </label>
+      <label class="field">
+        <span>Senha</span>
+        <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+      </label>
+      <p class="auth-msg" id="authMsg"></p>
+      <button type="submit" class="btn btn-lime auth-submit">Entrar</button>
+    </form>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script>
+  /* Se já tem sessão válida no servidor, nem mostra o formulário. */
+  if (AUTH.isLoggedIn()) {
+    AUTH.check().then((ok) => { if (ok) window.location.href = 'index.html'; });
+  }
+
+  const form = document.getElementById('loginForm');
+  const msgEl = document.getElementById('authMsg');
+  const submitBtn = form.querySelector('.auth-submit');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msgEl.textContent = '';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Entrando...';
+    const result = await AUTH.login(form.email.value, form.password.value);
+    if (!result.ok) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Entrar';
+      msgEl.textContent = result.error;
+      return;
+    }
+    window.location.href = 'index.html';
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importar dados | Controle WebHub</title>
+<script src="js/auth.js"></script>
+<script>AUTH.requireAuth();</script>
+<script src="js/theme.js"></script>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .import-card{max-width:520px;}
+  .import-source{border:1.5px solid var(--gray-100);border-radius:14px;padding:18px;margin-top:14px;}
+  .import-source h2{font-size:.95rem;margin:0 0 6px;}
+  .import-source p{font-size:.8rem;color:var(--gray-500);margin:0 0 12px;}
+  .import-stats{list-style:none;padding:0;margin:0 0 14px;font-size:.82rem;display:flex;flex-direction:column;gap:4px;}
+  .import-stats strong{font-weight:700;}
+  .import-warn{font-size:.78rem;color:#b3261e;background:#fdecec;padding:10px 12px;border-radius:10px;margin-bottom:12px;}
+  .import-ok{font-size:.82rem;color:#1e6b3a;background:#eef8f0;padding:10px 12px;border-radius:10px;margin-top:12px;}
+  .import-file{font-size:.82rem;margin-bottom:12px;}
+  .back-link{display:block;text-align:center;font-size:.8rem;margin-top:18px;color:var(--gray-500);}
+</style>
+</head>
+<body>
+
+<div class="auth-page">
+  <div class="auth-card import-card">
+    <div class="brand">
+      <div class="brand-mark">CW</div>
+      <span class="brand-name">Controle WebHub</span>
+    </div>
+    <h1>Importar dados</h1>
+    <p class="auth-sub">Traz clientes e configurações para o servidor. Quem já existir (mesmo id) é atualizado, o resto é adicionado — nada é apagado.</p>
+
+    <p class="auth-msg" id="serverInfo" style="color:var(--gray-500);"></p>
+
+    <!-- Fonte 1: dados salvos neste navegador pela versão antiga (localStorage) -->
+    <div class="import-source" id="legacyBox" hidden>
+      <h2>Dados salvos neste navegador</h2>
+      <p>Encontrei cadastros da versão antiga do painel (quando os dados ficavam só no navegador).</p>
+      <ul class="import-stats" id="legacyStats"></ul>
+      <p class="auth-msg" id="legacyMsg"></p>
+      <button type="button" class="btn btn-lime" id="legacyBtn">Enviar para o servidor</button>
+    </div>
+
+    <!-- Fonte 2: arquivo de backup (.json) baixado em Configurações -->
+    <div class="import-source">
+      <h2>Arquivo de backup (.json)</h2>
+      <p>Escolha um arquivo baixado pelo botão "Baixar backup" em Configurações.</p>
+      <input type="file" accept="application/json,.json" id="fileInput" class="import-file">
+      <ul class="import-stats" id="fileStats"></ul>
+      <p class="auth-msg" id="fileMsg"></p>
+      <button type="button" class="btn btn-lime" id="fileBtn" hidden>Importar do arquivo</button>
+    </div>
+
+    <div class="import-ok" id="doneBox" hidden></div>
+    <a href="index.html" class="back-link">← Voltar ao painel</a>
+  </div>
+</div>
+
+<script src="js/store.js"></script>
+<script>
+STORE.onReady(() => {
+  const serverInfo = document.getElementById('serverInfo');
+  const serverCount = STORE.getAll().length;
+  serverInfo.textContent = serverCount
+    ? `O servidor já tem ${serverCount} cliente${serverCount === 1 ? '' : 's'} cadastrado${serverCount === 1 ? '' : 's'}.`
+    : 'O servidor ainda não tem nenhum cliente cadastrado.';
+
+  function statsHTML(clients, options, salaryPct) {
+    const items = [`<li><strong>${clients.length}</strong> cliente${clients.length === 1 ? '' : 's'}</li>`];
+    if (options) {
+      const n = Object.values(options).reduce((s, l) => s + (Array.isArray(l) ? l.length : 0), 0);
+      items.push(`<li><strong>${n}</strong> opções de listas (tipo de projeto, origem, devs)</li>`);
+    }
+    if (salaryPct !== null && salaryPct !== undefined) items.push(`<li>% do salário: <strong>${salaryPct}%</strong></li>`);
+    return items.join('');
+  }
+
+  /* Junta listas de opções sem duplicar (mantém o que o servidor já tem + o que vier). */
+  function mergeOptions(incoming) {
+    if (!incoming || typeof incoming !== 'object') return null;
+    const current = STORE.getSettings().options || {};
+    const merged = { ...current };
+    Object.keys(incoming).forEach((field) => {
+      const list = Array.isArray(incoming[field]) ? incoming[field] : [];
+      const base = Array.isArray(merged[field]) ? merged[field] : STORE.getOptions(field);
+      const lower = new Set(base.map(v => String(v).toLowerCase()));
+      merged[field] = [...base, ...list.filter(v => v && !lower.has(String(v).toLowerCase()))];
+    });
+    return merged;
+  }
+
+  async function runImport({ clients, options, salaryPct, seenCharges }, msgEl, btn, doneLabel) {
+    msgEl.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    try {
+      const valid = clients.filter(c => c && typeof c === 'object' && typeof c.id === 'string');
+      let saved = 0;
+      if (valid.length) saved = await STORE.importClients(valid);
+      const mergedOptions = mergeOptions(options);
+      if (mergedOptions) await STORE.saveSetting('options', mergedOptions);
+      if (Number.isFinite(parseFloat(salaryPct)) && STORE.getSettings().salaryPct === undefined) {
+        await STORE.saveSetting('salaryPct', parseFloat(salaryPct));
+      }
+      if (Array.isArray(seenCharges) && seenCharges.length) {
+        await STORE.saveSetting('seenCharges', [...new Set([...STORE.getSeenCharges(), ...seenCharges])]);
+      }
+      const done = document.getElementById('doneBox');
+      done.hidden = false;
+      done.textContent = `${doneLabel}: ${saved} cliente${saved === 1 ? '' : 's'} enviado${saved === 1 ? '' : 's'} para o servidor. Agora eles aparecem em qualquer aparelho.`;
+      btn.textContent = 'Concluído';
+      const total = STORE.getAll().length;
+      serverInfo.textContent = `O servidor agora tem ${total} cliente${total === 1 ? '' : 's'}.`;
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Tentar de novo';
+      msgEl.textContent = 'Falhou: ' + err.message;
+    }
+  }
+
+  /* ===== Fonte 1: localStorage da versão antiga ===== */
+  function readJSON(key) {
+    try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+  }
+  const legacyClients = readJSON('sp_clients_v1');
+  if (Array.isArray(legacyClients) && legacyClients.length) {
+    const legacyOptions = readJSON('sp_options_v2');
+    const legacySalary = localStorage.getItem('sp_salary_pct_v1');
+    const legacySeen = readJSON('sp_notif_seen_v1');
+    document.getElementById('legacyBox').hidden = false;
+    document.getElementById('legacyStats').innerHTML = statsHTML(legacyClients, legacyOptions, legacySalary);
+    document.getElementById('legacyBtn').addEventListener('click', () => {
+      runImport({ clients: legacyClients, options: legacyOptions, salaryPct: legacySalary, seenCharges: legacySeen },
+        document.getElementById('legacyMsg'), document.getElementById('legacyBtn'), 'Importação do navegador')
+        .then(() => localStorage.setItem('sp_legacy_imported_at', new Date().toISOString()));
+    });
+  }
+
+  /* ===== Fonte 2: arquivo de backup ===== */
+  const fileInput = document.getElementById('fileInput');
+  const fileBtn = document.getElementById('fileBtn');
+  const fileMsg = document.getElementById('fileMsg');
+  let fileData = null;
+
+  fileInput.addEventListener('change', () => {
+    fileMsg.textContent = '';
+    fileBtn.hidden = true;
+    fileData = null;
+    document.getElementById('fileStats').innerHTML = '';
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        /* Aceita tanto o backup completo ({clients, settings}) quanto uma lista pura de clientes. */
+        const clients = Array.isArray(parsed) ? parsed : parsed.clients;
+        if (!Array.isArray(clients)) throw new Error('não encontrei a lista de clientes nesse arquivo.');
+        const settings = (parsed && parsed.settings) || {};
+        fileData = { clients, options: settings.options, salaryPct: settings.salaryPct, seenCharges: settings.seenCharges };
+        document.getElementById('fileStats').innerHTML = statsHTML(clients, settings.options, settings.salaryPct);
+        fileBtn.hidden = false;
+      } catch (err) {
+        fileMsg.textContent = 'Arquivo inválido: ' + err.message;
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  fileBtn.addEventListener('click', () => {
+    if (fileData) runImport(fileData, fileMsg, fileBtn, 'Importação do arquivo');
+  });
+});
+</script>
+</body>
+</html>

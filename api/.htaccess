@@ -1,0 +1,5 @@
+# Bloqueia acesso direto ao config (com a senha do banco) e ao exemplo.
+<FilesMatch "^config(\.example)?\.php$">
+  Require all denied
+</FilesMatch>
+Options -Indexes

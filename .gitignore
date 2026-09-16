@@ -1,0 +1,10 @@
+# Segredos do servidor — nunca vão para o Git nem são sobrescritos pelo deploy.
+api/config.php
+
+# Lixo de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backups baixados pelo painel
+*.backup.json

@@ -1,0 +1,428 @@
+/* Camada de dados do Controle WebHub — os dados vivem no servidor (api/), não mais no
+   localStorage. Assim o painel mostra os mesmos clientes em qualquer aparelho.
+
+   Como as telas continuam usando o STORE de forma síncrona (STORE.getAll(), STORE.totals()...),
+   tudo é carregado UMA vez ao abrir a página (clientes + configurações) e fica em memória;
+   as leituras vêm daí e as gravações atualizam a memória na hora e mandam pro servidor.
+   Cada página espera esse carregamento com STORE.onReady(fn) em vez de DOMContentLoaded.
+
+   Preferências do aparelho (tema, menu recolhido) continuam no localStorage — veja theme.js
+   e sidebar.js. */
+const STORE = (function () {
+  const API = 'api/';
+
+  let clients = [];
+  let settings = {};
+
+  /* ===== Comunicação com a API ===== */
+  async function request(path, options = {}) {
+    const res = await fetch(API + path, {
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
+      ...options
+    });
+    if (res.status === 401) {
+      if (typeof AUTH !== 'undefined') AUTH.handleUnauthorized();
+      throw new Error('Sessão expirada.');
+    }
+    let json = {};
+    try { json = await res.json(); } catch (e) { /* sem JSON (servidor fora / erro de PHP) */ }
+    if (!res.ok || json.ok === false) throw new Error(json.error || `Erro no servidor (${res.status}).`);
+    return json;
+  }
+
+  document.documentElement.classList.add('is-loading');
+  const loadPromise = Promise.all([request('clients.php'), request('settings.php')])
+    .then(([c, s]) => {
+      clients = Array.isArray(c.clients) ? c.clients : [];
+      settings = (s.settings && typeof s.settings === 'object') ? s.settings : {};
+      document.documentElement.classList.remove('is-loading');
+    });
+
+  const domReady = new Promise((resolve) => {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', resolve);
+    else resolve();
+  });
+
+  /* Mostra um aviso no topo da página se o carregamento inicial falhar (servidor fora,
+     config.php faltando, banco inacessível...), com botão pra tentar de novo. */
+  function showLoadError(err) {
+    domReady.then(() => {
+      document.documentElement.classList.remove('is-loading');
+      const main = document.querySelector('.main') || document.body;
+      const box = document.createElement('div');
+      box.className = 'load-error';
+      box.innerHTML = `<strong>Não foi possível carregar os dados do servidor.</strong><span></span>
+        <button type="button" class="btn btn-outline btn-sm">Tentar de novo</button>`;
+      box.querySelector('span').textContent = err && err.message ? err.message : '';
+      box.querySelector('button').addEventListener('click', () => window.location.reload());
+      main.prepend(box);
+    });
+    console.error(err);
+  }
+
+  /* Uso: STORE.onReady(() => { ... }) — roda quando o DOM e os dados estiverem prontos. */
+  function onReady(fn) {
+    Promise.all([domReady, loadPromise]).then(() => fn(), showLoadError);
+  }
+
+  /* Gravações "de fundo" (listas, % salário, notificações vistas): a memória já foi
+     atualizada, então só avisa se o servidor recusar. */
+  function notifyError(err) {
+    console.error(err);
+    const toast = document.getElementById('toast');
+    const msg = 'Não foi possível salvar no servidor: ' + (err && err.message ? err.message : 'erro desconhecido');
+    if (toast) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 4000);
+    } else {
+      alert(msg);
+    }
+  }
+
+  function saveSetting(key, value) {
+    settings[key] = value;
+    return request('settings.php', { method: 'PUT', body: JSON.stringify({ key, value }) }).catch(notifyError);
+  }
+
+  /* ===== Clientes ===== */
+  function uid() {
+    return 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function getAll() {
+    return clients.map(c => ({ ...c }));
+  }
+
+  function getById(id) {
+    const found = clients.find(c => c.id === id);
+    return found ? { ...found } : null;
+  }
+
+  function blankClient() {
+    return {
+      id: uid(),
+      empresa: '',
+      nomeCliente: '',
+      valor: 0,
+      tipoProjeto: '',
+      origem: '',
+      devResponsavel: '',
+      devPago: false,
+      clientePago: false,
+      agenciaPaga: false,
+      tipoPagamento: 'avista',
+      dataInicio: '',
+      prazoFinal: '',
+      status: 'desenvolvimento',
+      splitAgencia: 20,
+      splitEu: 40,
+      splitDev: 40,
+      parcelas: [],
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  /* Devolve uma Promise — quem grava e depois navega pra outra página precisa esperar
+     (senão a requisição pode ser cancelada no meio). */
+  async function upsert(client) {
+    await request('clients.php', { method: 'POST', body: JSON.stringify(client) });
+    const idx = clients.findIndex(c => c.id === client.id);
+    if (idx >= 0) clients[idx] = client;
+    else clients.push(client);
+    return client;
+  }
+
+  async function remove(id) {
+    await request(`clients.php?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    clients = clients.filter(c => c.id !== id);
+  }
+
+  /* Importação em lote (página importar.html): cria os que não existem e atualiza os que
+     têm o mesmo id. Mantém em memória também, pra página já refletir. */
+  async function importClients(list) {
+    const result = await request('clients.php?bulk=1', { method: 'POST', body: JSON.stringify(list) });
+    list.forEach((client) => {
+      const idx = clients.findIndex(c => c.id === client.id);
+      if (idx >= 0) clients[idx] = client; else clients.push(client);
+    });
+    return result.saved;
+  }
+
+  /* ===== Opções das listas (Tipo de projeto / Origem do cliente / Desenvolvedores) =====
+     Lista única e totalmente editável por campo, guardada no servidor (settings.options) —
+     pode adicionar e remover qualquer opção (inclusive as de fábrica), com uma única exceção:
+     "Ruan" na lista de devs nunca pode ser removido, porque é o valor que a tela de
+     cliente usa pra saber que o projeto é seu (sem repasse de dev separado). */
+  const DEFAULT_OPTIONS = {
+    tipoProjeto: ['Site institucional', 'Identidade visual', 'Sistema', 'SaaS', 'Landing page', 'Manutenção'],
+    origem: ['Formulário', 'WhatsApp', 'Instagram', 'Pessoal'],
+    devResponsavel: ['Ruan']
+  };
+  const PROTECTED_OPTIONS = { devResponsavel: ['Ruan'] };
+
+  function getAllOptionLists() {
+    const stored = settings.options;
+    if (stored && typeof stored === 'object') return stored;
+    const seeded = {};
+    Object.keys(DEFAULT_OPTIONS).forEach((field) => { seeded[field] = [...DEFAULT_OPTIONS[field]]; });
+    return seeded;
+  }
+
+  function getOptions(field) {
+    const list = getAllOptionLists()[field] || [...(DEFAULT_OPTIONS[field] || [])];
+    const protectedList = PROTECTED_OPTIONS[field] || [];
+    const missingProtected = protectedList.filter(v => !list.includes(v));
+    return [...missingProtected, ...list];
+  }
+
+  function isProtectedOption(field, value) {
+    return (PROTECTED_OPTIONS[field] || []).some(v => v.toLowerCase() === String(value).toLowerCase());
+  }
+
+  function addOption(field, value) {
+    value = (value || '').trim();
+    if (!value) return false;
+    const list = getOptions(field);
+    if (list.some(v => v.toLowerCase() === value.toLowerCase())) return false;
+    const all = getAllOptionLists();
+    all[field] = [...list, value];
+    saveSetting('options', all);
+    return true;
+  }
+
+  function removeOption(field, value) {
+    if (isProtectedOption(field, value)) return false;
+    const all = getAllOptionLists();
+    all[field] = getOptions(field).filter(v => v !== value);
+    saveSetting('options', all);
+    return true;
+  }
+
+  /* ===== Cálculos financeiros ===== */
+  function splitValues(client) {
+    const valor = parseFloat(client.valor) || 0;
+    return {
+      agencia: valor * ((parseFloat(client.splitAgencia) || 0) / 100),
+      eu: valor * ((parseFloat(client.splitEu) || 0) / 100),
+      dev: valor * ((parseFloat(client.splitDev) || 0) / 100)
+    };
+  }
+
+  /* Quanto do valor combinado já entrou de verdade (dinheiro na mão, não "fechado no papel").
+     À vista: tudo ou nada, pelo check "Cliente já pagou". Parcelado: soma só as parcelas
+     marcadas como pagas (pode ser parcial). */
+  function valorRecebido(client) {
+    if (client.tipoPagamento === 'parcelado') {
+      return (client.parcelas || []).reduce((sum, p) => sum + (p.pago ? (parseFloat(p.valor) || 0) : 0), 0);
+    }
+    return client.clientePago ? (parseFloat(client.valor) || 0) : 0;
+  }
+
+  /* Situação financeira real de um cliente: quanto entrou, quanto já saiu (repassado pro
+     dev/agência) e quanto sobra de fato "no banco" pra mim — diferente do splitValues, que
+     é só a divisão combinada, sem olhar se alguém pagou alguma coisa ainda. */
+  function financeiro(client) {
+    const valorTotal = parseFloat(client.valor) || 0;
+    const split = splitValues(client);
+    const recebido = valorRecebido(client);
+    const devRepassado = client.devPago ? split.dev : 0;
+    const agenciaRepassada = client.agenciaPaga ? split.agencia : 0;
+    const euPct = (parseFloat(client.splitEu) || 0) / 100;
+    return {
+      valorTotal,
+      recebido,
+      pendenteReceber: valorTotal - recebido,
+      devValor: split.dev,
+      devRepassado,
+      devPendente: split.dev - devRepassado,
+      agenciaValor: split.agencia,
+      agenciaRepassada,
+      agenciaPendente: split.agencia - agenciaRepassada,
+      euValor: split.eu,
+      /* A minha parte é sempre a minha % do que já foi recebido do cliente — não depende
+         de eu já ter repassado ou não a cota do dev/agência. Antes isso ficava
+         "recebido - devRepassado - agenciaRepassada", então até eu marcar os checks de
+         pago, o dinheiro que era do dev/agência aparecia como se fosse meu (inflando o
+         saldo). Repassei pra fazer sentido: minha % é minha independente disso. */
+      meuSaldo: recebido * euPct
+    };
+  }
+
+  /* Fatia financeira de um cliente que cai num MÊS ESPECÍFICO — pra projetos parcelados,
+     cada parcela só conta no mês do próprio vencimento (não no mês em que o projeto foi
+     fechado), porque um projeto fechado em setembro com parcelas em outubro/novembro
+     tem que aparecer nos meses em que o dinheiro de fato entra. Cliente à vista continua
+     valendo no mês em que foi fechado (não tem parcela com data própria pra usar).
+     As porcentagens de cada cliente (agência/eu/dev) e os checks de pago continuam
+     valendo do jeito de sempre, só aplicados em cima do valor daquele mês específico. */
+  function financeiroPorMes(client, period) {
+    let valorTotal = 0, recebido = 0, pendenteReceber = 0;
+
+    if (client.tipoPagamento === 'parcelado') {
+      (client.parcelas || []).forEach((p) => {
+        if ((p.data || '').slice(0, 7) !== period) return;
+        const v = parseFloat(p.valor) || 0;
+        valorTotal += v;
+        if (p.pago) recebido += v; else pendenteReceber += v;
+      });
+    } else {
+      const closingMonth = (client.dataInicio || client.createdAt || '').slice(0, 7);
+      if (closingMonth === period) {
+        valorTotal = parseFloat(client.valor) || 0;
+        if (client.clientePago) recebido = valorTotal; else pendenteReceber = valorTotal;
+      }
+    }
+
+    const euPct = (parseFloat(client.splitEu) || 0) / 100;
+    const devPct = (parseFloat(client.splitDev) || 0) / 100;
+    const agenciaPct = (parseFloat(client.splitAgencia) || 0) / 100;
+    const devValor = recebido * devPct;
+    const agenciaValor = recebido * agenciaPct;
+    const devRepassado = client.devPago ? devValor : 0;
+    const agenciaRepassada = client.agenciaPaga ? agenciaValor : 0;
+
+    return {
+      valorTotal,
+      recebido,
+      pendenteReceber,
+      devValor,
+      devRepassado,
+      devPendente: devValor - devRepassado,
+      agenciaValor,
+      agenciaRepassada,
+      agenciaPendente: agenciaValor - agenciaRepassada,
+      euValor: recebido * euPct,
+      meuSaldo: recebido * euPct
+    };
+  }
+
+  function totals() {
+    const list = getAll();
+    const acc = {
+      totalFechado: 0, totalDev: 0, totalAgencia: 0, totalEu: 0, count: list.length,
+      totalRecebido: 0, totalPendenteReceber: 0,
+      totalDevRepassado: 0, totalDevPendente: 0,
+      totalAgenciaRepassada: 0, totalAgenciaPendente: 0,
+      totalMeuSaldo: 0
+    };
+    list.forEach(c => {
+      const s = splitValues(c);
+      const f = financeiro(c);
+      acc.totalFechado += parseFloat(c.valor) || 0;
+      acc.totalDev += s.dev;
+      acc.totalAgencia += s.agencia;
+      acc.totalEu += s.eu;
+      acc.totalRecebido += f.recebido;
+      acc.totalPendenteReceber += f.pendenteReceber;
+      acc.totalDevRepassado += f.devRepassado;
+      acc.totalDevPendente += f.devPendente;
+      acc.totalAgenciaRepassada += f.agenciaRepassada;
+      acc.totalAgenciaPendente += f.agenciaPendente;
+      acc.totalMeuSaldo += f.meuSaldo;
+    });
+    return acc;
+  }
+
+  function initials(name) {
+    if (!name) return '?';
+    return name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  }
+
+  function formatBRL(value) {
+    return (parseFloat(value) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    if (!y || !m || !d) return iso;
+    return `${d}/${m}/${y}`;
+  }
+
+  /* Parcelas com data hoje ou vencidas que ainda não foram marcadas como pagas —
+     usado pelo sino de notificações e pelo pop-up de cobrança. */
+  function getDueCharges() {
+    const today = new Date().toISOString().slice(0, 10);
+    const due = [];
+    getAll().forEach(c => {
+      (c.parcelas || []).forEach((p, parcelaIndex) => {
+        if (!p.pago && p.data && p.data <= today) {
+          due.push({ clientId: c.id, empresa: c.empresa, valor: p.valor, data: p.data, parcelaIndex });
+        }
+      });
+    });
+    due.sort((a, b) => a.data.localeCompare(b.data));
+    return due;
+  }
+
+  /* Se JÁ chegou o dia de cobrar esse cliente — usado pelo aviso "!" no card. Não tem a
+     ver com repasse pro dev/agência, só com receber do cliente: parcelado só conta
+     quando alguma parcela já venceu (data <= hoje) e não foi paga; à vista é considerado
+     devido assim que fechado (não tem data futura pra esperar), enquanto não for pago. */
+  function cobrancaPendente(client) {
+    if (client.tipoPagamento === 'parcelado') {
+      const today = new Date().toISOString().slice(0, 10);
+      return (client.parcelas || []).some(p => !p.pago && p.data && p.data <= today);
+    }
+    return !client.clientePago;
+  }
+
+  /* Controla quais cobranças já foram "vistas" (pop-up já mostrado / sino já aberto),
+     pra não ficar repetindo a mesma notificação a cada refresh — vale em todos os aparelhos. */
+  function chargeKey(item) {
+    return `${item.clientId}::${item.parcelaIndex}::${item.data}`;
+  }
+
+  function getSeenCharges() {
+    return Array.isArray(settings.seenCharges) ? settings.seenCharges : [];
+  }
+
+  function markChargesSeen(items) {
+    const seen = new Set(getSeenCharges());
+    items.forEach(i => seen.add(chargeKey(i)));
+    saveSetting('seenCharges', [...seen]);
+  }
+
+  /* Percentual do saldo líquido do mês que vai pro seu salário (o resto fica no caixa
+     da empresa) — ajustável na página Financeiro, guardado pra não perguntar de novo. */
+  const DEFAULT_SALARY_PCT = 60;
+
+  function getSalaryPct() {
+    const n = parseFloat(settings.salaryPct);
+    return Number.isFinite(n) ? n : DEFAULT_SALARY_PCT;
+  }
+
+  function setSalaryPct(value) {
+    const n = Math.max(0, Math.min(100, parseFloat(value) || 0));
+    saveSetting('salaryPct', n);
+    return n;
+  }
+
+  /* Cópia completa dos dados (clientes + configurações) — usada pelo backup em Configurações
+     e aceita de volta pela página de importação. */
+  function exportAll() {
+    return {
+      app: 'controle-webhub',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      clients: getAll(),
+      settings: { ...settings }
+    };
+  }
+
+  function getSettings() {
+    return { ...settings };
+  }
+
+  return {
+    onReady, request,
+    getAll, getById, blankClient, upsert, remove, importClients,
+    splitValues, valorRecebido, financeiro, financeiroPorMes, totals, initials, formatBRL, formatDate, getDueCharges,
+    chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
+    getOptions, addOption, removeOption, isProtectedOption,
+    getSalaryPct, setSalaryPct, saveSetting, getSettings, DEFAULT_SALARY_PCT,
+    exportAll
+  };
+})();

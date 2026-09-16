@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clientes | Controle WebHub</title>
+<script src="js/auth.js"></script>
+<script>AUTH.requireAuth();</script>
+<script src="js/theme.js"></script>
+<script src="js/sidebar.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9h12v-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 19v-5h4v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 20c.8-3.4 3-5.2 6-5.2s5.2 1.8 6 5.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16.5" cy="8.5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 14.6c2.6.3 4.2 1.9 4.8 4.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-cash" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 12h3.5a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H16a2 2 0 0 1 0-4z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-report" viewBox="0 0 24 24"><path d="M7 3h8l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M15 3v4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><line x1="9" y1="12" x2="15" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="9" y1="15.5" x2="15" y2="15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="9" y1="19" x2="12.5" y2="19" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M15 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="20" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M13 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.4-2-3.4-2.3.8a7.7 7.7 0 0 0-1.7-1l-.4-2.4H10.6l-.4 2.4a7.7 7.7 0 0 0-1.7 1l-2.3-.8-2 3.4L6.2 11a7.6 7.6 0 0 0 0 2l-2 1.4 2 3.4 2.3-.8a7.7 7.7 0 0 0 1.7 1l.4 2.4h3.4l.4-2.4a7.7 7.7 0 0 0 1.7-1l2.3.8 2-3.4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 17v-5a6 6 0 0 1 12 0v5l1.5 2.2H4.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 20.5a2.6 2.6 0 0 0 5 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="app">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="Recolher menu"><svg class="icon-sm"><use href="#i-chevron"/></svg></button>
+    <div class="brand">
+      <div class="brand-mark">CW</div>
+      <span class="brand-name">Controle WebHub</span>
+    </div>
+    <nav class="nav-group">
+      <a href="index.html" class="nav-link"><svg class="icon"><use href="#i-home"/></svg><span>Dashboard</span></a>
+      <a href="clientes.html" class="nav-link active"><svg class="icon"><use href="#i-users"/></svg><span>Clientes</span></a>
+      <a href="cliente.html" class="nav-sublink"><svg><use href="#i-plus"/></svg><span>Novo cliente</span></a>
+      <a href="financeiro.html" class="nav-link"><svg class="icon"><use href="#i-wallet"/></svg><span>Financeiro</span></a>
+      <a href="relatorio.html" class="nav-link"><svg class="icon"><use href="#i-report"/></svg><span>Relatório</span></a>
+      <a href="configuracoes.html" class="nav-link"><svg class="icon"><use href="#i-gear"/></svg><span>Configurações</span></a>
+    </nav>
+    <div class="nav-spacer"></div>
+    <button class="nav-link nav-logout" id="logoutBtn"><svg class="icon"><use href="#i-logout"/></svg><span>Sair</span></button>
+  </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ================= CONTEÚDO ================= -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menu"><svg class="icon"><use href="#i-menu"/></svg></button>
+        <h1>Clientes</h1>
+        <span class="topbar-pill" id="clientCountPill">0 clientes</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="notifBell" aria-label="Notificações"><svg class="icon"><use href="#i-bell"/></svg></button>
+        <div class="user-chip">
+          <div class="user-avatar">EU</div>
+          <span>Minha agência</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-head">
+      <div class="field" style="max-width:320px;">
+        <input type="text" id="searchInput" placeholder="Buscar por empresa, dev ou tipo...">
+      </div>
+      <a href="cliente.html" class="btn btn-lime"><svg class="icon-sm"><use href="#i-plus"/></svg>Novo cliente</a>
+    </div>
+
+    <section class="client-grid" id="clientGrid"></section>
+  </main>
+</div>
+
+<script src="js/store.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/clientes.js"></script>
+<script>document.getElementById('logoutBtn').addEventListener('click', () => AUTH.logout());</script>
+</body>
+</html>

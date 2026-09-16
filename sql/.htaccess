@@ -1,0 +1,2 @@
+# Os arquivos .sql são aplicados pelo api/setup.php — ninguém precisa baixá-los pelo navegador.
+Require all denied

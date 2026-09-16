@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="pageTitle">Novo cliente | Controle WebHub</title>
+<script src="js/auth.js"></script>
+<script>AUTH.requireAuth();</script>
+<script src="js/theme.js"></script>
+<script src="js/sidebar.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9h12v-9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 19v-5h4v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 20c.8-3.4 3-5.2 6-5.2s5.2 1.8 6 5.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16.5" cy="8.5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 14.6c2.6.3 4.2 1.9 4.8 4.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-cash" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 12h3.5a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H16a2 2 0 0 1 0-4z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-report" viewBox="0 0 24 24"><path d="M7 3h8l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M15 3v4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><line x1="9" y1="12" x2="15" y2="12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="9" y1="15.5" x2="15" y2="15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="9" y1="19" x2="12.5" y2="19" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M15 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="20" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M13 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.4-2-3.4-2.3.8a7.7 7.7 0 0 0-1.7-1l-.4-2.4H10.6l-.4 2.4a7.7 7.7 0 0 0-1.7 1l-2.3-.8-2 3.4L6.2 11a7.6 7.6 0 0 0 0 2l-2 1.4 2 3.4 2.3-.8a7.7 7.7 0 0 0 1.7 1l.4 2.4h3.4l.4-2.4a7.7 7.7 0 0 0 1.7-1l2.3.8 2-3.4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 17v-5a6 6 0 0 1 12 0v5l1.5 2.2H4.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 20.5a2.6 2.6 0 0 0 5 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="app">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="Recolher menu"><svg class="icon-sm"><use href="#i-chevron"/></svg></button>
+    <div class="brand">
+      <div class="brand-mark">CW</div>
+      <span class="brand-name">Controle WebHub</span>
+    </div>
+    <nav class="nav-group">
+      <a href="index.html" class="nav-link"><svg class="icon"><use href="#i-home"/></svg><span>Dashboard</span></a>
+      <a href="clientes.html" class="nav-link active"><svg class="icon"><use href="#i-users"/></svg><span>Clientes</span></a>
+      <a href="cliente.html" class="nav-sublink" id="navNovoCliente"><svg><use href="#i-plus"/></svg><span>Novo cliente</span></a>
+      <a href="financeiro.html" class="nav-link"><svg class="icon"><use href="#i-wallet"/></svg><span>Financeiro</span></a>
+      <a href="relatorio.html" class="nav-link"><svg class="icon"><use href="#i-report"/></svg><span>Relatório</span></a>
+      <a href="configuracoes.html" class="nav-link"><svg class="icon"><use href="#i-gear"/></svg><span>Configurações</span></a>
+    </nav>
+    <div class="nav-spacer"></div>
+    <button class="nav-link nav-logout" id="logoutBtn"><svg class="icon"><use href="#i-logout"/></svg><span>Sair</span></button>
+  </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ================= CONTEÚDO ================= -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menu"><svg class="icon"><use href="#i-menu"/></svg></button>
+        <h1 id="formTitle">Novo cliente</h1>
+        <span class="topbar-pill" id="clientCountPill">0 clientes</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="notifBell" aria-label="Notificações"><svg class="icon"><use href="#i-bell"/></svg></button>
+        <div class="user-chip">
+          <div class="user-avatar">EU</div>
+          <span>Minha agência</span>
+        </div>
+      </div>
+    </div>
+
+    <form class="form-card" id="clientForm">
+      <div class="form-grid">
+        <label class="field field-full">
+          <span>Nome da empresa *</span>
+          <input type="text" name="empresa" required placeholder="ex: Padaria do João">
+        </label>
+        <label class="field field-full">
+          <span>Nome do cliente</span>
+          <input type="text" name="nomeCliente" placeholder="ex: João Silva">
+        </label>
+
+        <label class="field">
+          <span>Valor do projeto (R$) *</span>
+          <input type="text" inputmode="decimal" name="valor" required placeholder="0,00" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Tipo de projeto</span>
+          <select name="tipoProjeto">
+            <option value="">Selecione...</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Origem do cliente</span>
+          <select name="origem">
+            <option value="">Selecione...</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Dev responsável</span>
+          <select name="devResponsavel" id="devResponsavel">
+            <option value="">Selecione...</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Forma de pagamento</span>
+          <select name="tipoPagamento" id="tipoPagamento">
+            <option value="avista">À vista</option>
+            <option value="parcelado">Parcelado</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Data de início</span>
+          <input type="date" name="dataInicio">
+        </label>
+        <label class="field">
+          <span>Prazo final</span>
+          <input type="date" name="prazoFinal">
+        </label>
+
+        <label class="field">
+          <span>Status do projeto</span>
+          <select name="status">
+            <option value="desenvolvimento">Em desenvolvimento</option>
+            <option value="concluido">Concluído</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="section-title" id="parcelasTitle" hidden>
+        <span>Parcelas</span>
+        <button type="button" class="btn btn-outline btn-sm" id="addParcela"><svg class="icon-sm"><use href="#i-plus"/></svg>Adicionar parcela</button>
+      </div>
+      <div class="parcelas-list" id="parcelasList" hidden></div>
+
+      <div class="section-title">Situação de pagamento</div>
+      <div class="checkbox-row">
+        <label class="checkbox-field" id="clientePagoField">
+          <input type="checkbox" name="clientePago">
+          <span>Cliente já pagou</span>
+        </label>
+        <label class="checkbox-field" id="devPagoField">
+          <input type="checkbox" name="devPago">
+          <span>Dev já foi pago</span>
+        </label>
+        <label class="checkbox-field">
+          <input type="checkbox" name="agenciaPaga">
+          <span>Agência já foi paga</span>
+        </label>
+      </div>
+
+      <div class="section-title" id="splitSectionTitle">Divisão do valor entre agência, você e o dev</div>
+      <div class="split-row" id="splitRow">
+        <label class="field">
+          <span>Agência (%)</span>
+          <input type="number" name="splitAgencia" min="0" max="100" step="1" value="20">
+        </label>
+        <label class="field">
+          <span>Eu (%)</span>
+          <input type="number" name="splitEu" min="0" max="100" step="1" value="40">
+        </label>
+        <label class="field" id="splitDevField">
+          <span>Dev (%)</span>
+          <input type="number" name="splitDev" min="0" max="100" step="1" value="40">
+        </label>
+      </div>
+      <div class="split-breakdown" id="splitBreakdown">
+        <div class="split-card is-agencia"><span>Agência recebe</span><strong id="splitAgenciaValue">R$ 0,00</strong><small id="splitAgenciaPct">20%</small></div>
+        <div class="split-card is-eu"><span>Eu recebo</span><strong id="splitEuValue">R$ 0,00</strong><small id="splitEuPct">40%</small></div>
+        <div class="split-card is-dev" id="splitDevCard"><span>Dev recebe</span><strong id="splitDevValue">R$ 0,00</strong><small id="splitDevPct">40%</small></div>
+      </div>
+      <div class="split-total" id="splitTotal">Soma: 100%</div>
+
+      <div class="section-title">Situação financeira real deste projeto</div>
+      <p class="field-hint" style="margin:-8px 0 12px;">Aqui é o dinheiro que já entrou/saiu de verdade — diferente da divisão acima, que é só o combinado.</p>
+      <div class="finance-panel">
+        <div class="finance-row">
+          <div class="finance-row-info"><strong>Recebido do cliente</strong><span id="financeRecebidoHint"></span></div>
+          <div class="finance-row-value" id="financeRecebido">R$ 0,00</div>
+        </div>
+        <div class="finance-row" id="financeDevRow">
+          <div class="finance-row-info"><strong>Repassado ao dev</strong><span id="financeDevHint"></span></div>
+          <div class="finance-row-value" id="financeDev">R$ 0,00</div>
+        </div>
+        <div class="finance-row">
+          <div class="finance-row-info"><strong>Repassado à agência</strong><span id="financeAgenciaHint"></span></div>
+          <div class="finance-row-value" id="financeAgencia">R$ 0,00</div>
+        </div>
+        <div class="finance-row is-total">
+          <div class="finance-row-info"><strong>Saldo real (fica comigo)</strong></div>
+          <div class="finance-row-value" id="financeSaldo">R$ 0,00</div>
+        </div>
+      </div>
+
+      <p class="admin-msg" id="formMsg" style="font-size:.85rem;margin-top:14px;"></p>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-danger" id="deleteBtn" hidden><svg class="icon-sm"><use href="#i-trash"/></svg>Excluir cliente</button>
+        <div class="form-actions-right">
+          <a href="clientes.html" class="btn btn-outline">Cancelar</a>
+          <button type="submit" class="btn btn-lime" id="submitBtn">Salvar cliente</button>
+        </div>
+      </div>
+    </form>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/store.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/cliente.js"></script>
+<script>document.getElementById('logoutBtn').addEventListener('click', () => AUTH.logout());</script>
+</body>
+</html>
