@@ -1,23 +1,65 @@
-# Colocar o Controle WebHub no ar (Hostinger)
+# Colocar o Controle WebHub no ar
+
+Há duas opções. O código é o mesmo — muda só o `mode` em `js/config.js`.
+
+| | Opção A — GitHub Pages | Opção B — Hostinger |
+|---|---|---|
+| Custo | **Grátis** | Plano com PHP + MySQL |
+| `js/config.js` | `mode: 'local'` | `mode: 'server'` |
+| Dados | No navegador (cada aparelho tem os seus) | No banco (iguais em todo aparelho) |
+| Login | Barreira simples | Login de verdade |
+
+---
+
+# Opção A — GitHub Pages (grátis)
+
+## A1. Publicar (uma vez)
+
+O repositório já existe: **github.com/ruanmarchiori/controle-webhub**. No plano gratuito do GitHub, o Pages só funciona em repositório **público**. O código não tem senha nenhuma (só o hash da senha inicial e o seu e-mail em `js/config.js`), então pode ser público.
+
+1. No GitHub, abra o repositório → **Settings** (aba no topo).
+2. Role até o fim → **Danger Zone → Change repository visibility → Make public** → confirme digitando o nome do repositório.
+3. Ainda em Settings, menu lateral → **Pages**.
+4. Em *Build and deployment → Source*: **Deploy from a branch**. *Branch*: `main`, pasta `/ (root)`. **Save**.
+5. Espere 1–2 minutos e recarregue a página: aparece o endereço, que será
+
+   **https://ruanmarchiori.github.io/controle-webhub/**
+
+6. Abra o endereço, entre com o e-mail de `js/config.js` e a senha `trocar123`, e troque a senha em **Configurações**.
+
+## A2. Atualizar o sistema
+
+```
+git add .
+git commit -m "descrição da mudança"
+git push
+```
+
+O GitHub Pages republica sozinho em cerca de 1 minuto. Os clientes cadastrados ficam no navegador e não são afetados.
+
+## A3. Levar os dados de um aparelho para outro
+
+No aparelho de origem: **Configurações → Baixar backup (.json)**. No de destino: **Configurações → Importar dados → Arquivo de backup**. Faça isso também de vez em quando por segurança: limpar o cache do navegador apaga os cadastros.
+
+## A4. Migrar para a Opção B no futuro
+
+Quando tiver hospedagem: baixe um backup, siga a Opção B abaixo com `mode: 'server'`, e importe o backup em **Configurações → Importar dados**.
+
+---
+
+# Opção B — Hostinger (modo server)
 
 Guia passo a passo. A primeira vez leva uns 20–30 minutos; depois, atualizar o sistema é um `git push`.
 
 **Como funciona:** o código (HTML/JS/PHP) fica nos arquivos do site; os clientes ficam no banco MySQL. Subir uma versão nova do código nunca apaga clientes.
 
----
+**Antes de tudo:** em `js/config.js` troque `mode: 'local'` por `mode: 'server'`, faça commit e push.
 
-## Parte 1 — Só na primeira vez
+## Parte 1 — Só na primeira vez (Hostinger)
 
-### 1. GitHub (repositório privado)
+### 1. GitHub
 
-1. Entre em [github.com/new](https://github.com/new).
-2. Nome: `controle-webhub` (ou o que preferir). Marque **Private**. Não marque "Add a README". Clique em **Create repository**.
-3. No terminal do VS Code, dentro da pasta `Sistema Pessoal`:
-   ```
-   git remote add origin https://github.com/SEU-USUARIO/controle-webhub.git
-   git push -u origin main
-   ```
-   (O repositório local já está criado com o primeiro commit.)
+O repositório já existe (github.com/ruanmarchiori/controle-webhub) e o código já está lá. Se estiver público por causa do GitHub Pages, pode voltar a privado em Settings → Danger Zone, se preferir.
 
 ### 2. Hostinger — site, domínio e SSL
 

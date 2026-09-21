@@ -14,6 +14,11 @@ STORE.onReady(() => {
   });
 
   /* ===== Trocar senha ===== */
+  if (STORE.isLocal) {
+    document.getElementById('passwordHint').textContent = 'Vale só neste navegador. Se você usar outro computador ou o celular, precisa trocar de novo lá.';
+  } else {
+    document.getElementById('importHint').textContent += ' Também traz os clientes que ficaram salvos neste navegador na versão antiga do painel (antes dos dados irem para o servidor).';
+  }
   const form = document.getElementById('passwordForm');
   const msgEl = document.getElementById('passwordMsg');
 

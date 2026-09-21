@@ -4,20 +4,28 @@ Painel pessoal para controle dos clientes fechados pela agência: valores, tipo 
 
 ## Como funciona
 
-- **Front-end estático** (HTML, CSS e JavaScript puro) + **API em PHP com banco MySQL** (pasta `api/`). Os dados ficam no servidor, então o painel mostra os mesmos clientes em qualquer aparelho — computador, celular, outro navegador.
-- Hospedado na Hostinger (plano compartilhado com PHP + MySQL). Passo a passo de instalação e atualização em **[DEPLOY.md](DEPLOY.md)**.
-- O que fica só no navegador (preferência do aparelho): tema claro/escuro e menu recolhido.
-- **Layout responsivo:** o painel se adapta a celular e tablet (menu lateral vira uma coluna de ícones, cards e formulários empilham em uma coluna, tabelas ficam roláveis na horizontal).
+O painel é **HTML, CSS e JavaScript puro** e tem dois modos, escolhidos em `js/config.js`:
+
+| Modo | Onde ficam os dados | Hospedagem | Quando usar |
+|---|---|---|---|
+| `local` (atual) | No navegador (localStorage) | **GitHub Pages, grátis** | Sem custo. Cada navegador/aparelho tem os próprios dados — celular e computador **não** compartilham. Use Configurações → Backup para transferir. |
+| `server` | Banco MySQL via API PHP (`api/`) | Hospedagem com PHP (ex: Hostinger) | Mesmos clientes em qualquer aparelho, login de verdade. Veja [DEPLOY.md](DEPLOY.md). |
+
+Para trocar de modo: edite `mode` em `js/config.js`, faça commit e publique. As telas são as mesmas; só a camada de dados (`js/store.js`) e o login (`js/auth.js`) mudam de comportamento.
+
+- O que fica sempre no navegador (preferência do aparelho): tema claro/escuro e menu recolhido.
+- **Layout responsivo:** o painel se adapta a celular e tablet (menu vira gaveta, cards e formulários empilham, tabelas ficam roláveis).
 
 ### Estrutura
 
 ```
 *.html            telas do painel
 css/style.css     estilo
-js/store.js       camada de dados — fala com a API e guarda tudo em memória durante a página
-js/auth.js        login/logout/troca de senha (sessão no servidor)
+js/config.js      modo (local/server) e conta do modo local
+js/store.js       camada de dados — localStorage (local) ou API (server); tudo em memória durante a página
+js/auth.js        login/logout/troca de senha (nos dois modos)
 js/*.js           lógica de cada tela
-api/              back-end PHP (auth.php, clients.php, settings.php, setup.php)
+api/              back-end PHP — usado só no modo server
 api/config.php    dados do banco — existe SÓ no servidor (não vai pro Git)
 sql/              estrutura do banco, aplicada pelo api/setup.php
 importar.html     traz dados de um backup ou da versão antiga (localStorage)
@@ -40,11 +48,10 @@ importar.html     traz dados de um backup ou da versão antiga (localStorage)
 
 ## Login e acesso
 
-- **Sistema fechado, uma conta só:** a conta é criada pelo `api/setup.php` a partir do `admin_email` / `admin_initial_password` do `api/config.php`. Não existe cadastro nem pedido de acesso.
-- A senha fica no banco (hash bcrypt) e a sessão é um cookie HttpOnly ligado a um token no servidor. Sem sessão válida, a API não devolve nenhum dado — não dá pra contornar pelo F12.
-- **Troque a senha inicial** pelo menu **Configurações** assim que entrar. Vale em todos os aparelhos e derruba as outras sessões abertas.
-- A sessão dura até você clicar em "Sair" (ou 90 dias sem usar). 10 senhas erradas seguidas bloqueiam o IP por 15 minutos.
-- Esqueceu a senha? Veja "Problemas comuns" em [DEPLOY.md](DEPLOY.md).
+**Sistema fechado, uma conta só.** Não existe cadastro nem pedido de acesso.
+
+- **Modo local:** a conta está em `js/config.js` (`localAuth`), senha inicial `trocar123`. Como não há servidor, isso **não é proteção criptográfica** — quem sabe mexer em código (F12) consegue contornar. Serve só pra impedir uso casual por quem tem o link. Troque a senha pelo menu Configurações (vale só no navegador em que foi trocada) ou gere um hash novo com `await hashPassword("senha")` no console de `login.html` e cole no `config.js`.
+- **Modo server:** a conta é criada pelo `api/setup.php`; senha com bcrypt no banco, sessão em cookie HttpOnly, bloqueio após 10 tentativas erradas. Trocar a senha vale em todos os aparelhos.
 
 ## Divisão do valor
 
@@ -75,7 +82,7 @@ A aba **Financeiro** (`financeiro.html`) junta os números financeiros de toda a
 
 ## Publicar e atualizar
 
-Veja **[DEPLOY.md](DEPLOY.md)** — instalação na Hostinger (domínio, SSL, banco, Git) e o fluxo de atualização (`git push`). Resumo: código nos arquivos, clientes no banco; subir código novo nunca apaga clientes.
+Veja **[DEPLOY.md](DEPLOY.md)**: GitHub Pages (modo local, grátis) ou Hostinger (modo server). Nos dois casos, atualizar é `git push`.
 
 ## Backup
 

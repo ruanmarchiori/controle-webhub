@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Importar dados | Controle WebHub</title>
+<script src="js/config.js"></script>
 <script src="js/auth.js"></script>
 <script>AUTH.requireAuth();</script>
 <script src="js/theme.js"></script>
@@ -30,7 +31,7 @@
       <span class="brand-name">Controle WebHub</span>
     </div>
     <h1>Importar dados</h1>
-    <p class="auth-sub">Traz clientes e configurações para o servidor. Quem já existir (mesmo id) é atualizado, o resto é adicionado — nada é apagado.</p>
+    <p class="auth-sub">Traz clientes e configurações para o painel. Quem já existir (mesmo id) é atualizado, o resto é adicionado — nada é apagado.</p>
 
     <p class="auth-msg" id="serverInfo" style="color:var(--gray-500);"></p>
 
@@ -40,7 +41,7 @@
       <p>Encontrei cadastros da versão antiga do painel (quando os dados ficavam só no navegador).</p>
       <ul class="import-stats" id="legacyStats"></ul>
       <p class="auth-msg" id="legacyMsg"></p>
-      <button type="button" class="btn btn-lime" id="legacyBtn">Enviar para o servidor</button>
+      <button type="button" class="btn btn-lime" id="legacyBtn">Enviar para o painel</button>
     </div>
 
     <!-- Fonte 2: arquivo de backup (.json) baixado em Configurações -->
@@ -64,8 +65,8 @@ STORE.onReady(() => {
   const serverInfo = document.getElementById('serverInfo');
   const serverCount = STORE.getAll().length;
   serverInfo.textContent = serverCount
-    ? `O servidor já tem ${serverCount} cliente${serverCount === 1 ? '' : 's'} cadastrado${serverCount === 1 ? '' : 's'}.`
-    : 'O servidor ainda não tem nenhum cliente cadastrado.';
+    ? `O painel já tem ${serverCount} cliente${serverCount === 1 ? '' : 's'} cadastrado${serverCount === 1 ? '' : 's'}.`
+    : 'O painel ainda não tem nenhum cliente cadastrado.';
 
   function statsHTML(clients, options, salaryPct) {
     const items = [`<li><strong>${clients.length}</strong> cliente${clients.length === 1 ? '' : 's'}</li>`];
@@ -109,10 +110,10 @@ STORE.onReady(() => {
       }
       const done = document.getElementById('doneBox');
       done.hidden = false;
-      done.textContent = `${doneLabel}: ${saved} cliente${saved === 1 ? '' : 's'} enviado${saved === 1 ? '' : 's'} para o servidor. Agora eles aparecem em qualquer aparelho.`;
+      done.textContent = `${doneLabel}: ${saved} cliente${saved === 1 ? '' : 's'} enviado${saved === 1 ? '' : 's'} para o painel. `;
       btn.textContent = 'Concluído';
       const total = STORE.getAll().length;
-      serverInfo.textContent = `O servidor agora tem ${total} cliente${total === 1 ? '' : 's'}.`;
+      serverInfo.textContent = `O painel agora tem ${total} cliente${total === 1 ? '' : 's'}.`;
     } catch (err) {
       btn.disabled = false;
       btn.textContent = 'Tentar de novo';
@@ -124,7 +125,8 @@ STORE.onReady(() => {
   function readJSON(key) {
     try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
   }
-  const legacyClients = readJSON('sp_clients_v1');
+  /* No modo local o "servidor" É o localStorage — não há nada pra migrar. */
+  const legacyClients = STORE.isLocal ? null : readJSON('sp_clients_v1');
   if (Array.isArray(legacyClients) && legacyClients.length) {
     const legacyOptions = readJSON('sp_options_v2');
     const legacySalary = localStorage.getItem('sp_salary_pct_v1');

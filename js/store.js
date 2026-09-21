@@ -1,5 +1,7 @@
-/* Camada de dados do Controle WebHub — os dados vivem no servidor (api/), não mais no
-   localStorage. Assim o painel mostra os mesmos clientes em qualquer aparelho.
+/* Camada de dados do Controle WebHub. Dois modos (js/config.js):
+   - 'server': os dados vivem no servidor (api/) e o painel mostra os mesmos clientes em
+     qualquer aparelho;
+   - 'local': os dados ficam no localStorage do navegador (GitHub Pages, sem servidor).
 
    Como as telas continuam usando o STORE de forma síncrona (STORE.getAll(), STORE.totals()...),
    tudo é carregado UMA vez ao abrir a página (clientes + configurações) e fica em memória;
@@ -14,8 +16,79 @@ const STORE = (function () {
   let clients = [];
   let settings = {};
 
-  /* ===== Comunicação com a API ===== */
+  const IS_LOCAL = !window.APP_CONFIG || window.APP_CONFIG.mode !== 'server';
+
+  /* ===== Modo local: emula a API em cima do localStorage =====
+     Responde às mesmas "rotas" (clients.php / settings.php) com o mesmo formato, então o
+     resto do STORE (e a página de importação) não precisa saber em que modo está. As chaves
+     são as mesmas da versão antiga do painel, então quem já tinha clientes cadastrados no
+     navegador continua vendo tudo. */
+  const LOCAL_CLIENTS_KEY = 'sp_clients_v1';
+  const LOCAL_SETTINGS_KEY = 'sp_settings_v1';
+
+  function localRead(key, fallback) {
+    try { const v = JSON.parse(localStorage.getItem(key)); return v === null || v === undefined ? fallback : v; }
+    catch (e) { return fallback; }
+  }
+  function localWrite(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); }
+    catch (e) { throw new Error('O navegador não deixou salvar (armazenamento cheio ou bloqueado).'); }
+  }
+  /* Primeira vez no formato novo: aproveita as chaves soltas da versão antiga. */
+  function localSettings() {
+    const stored = localRead(LOCAL_SETTINGS_KEY, null);
+    if (stored && typeof stored === 'object') return stored;
+    const migrated = {};
+    const oldOptions = localRead('sp_options_v2', null);
+    if (oldOptions && typeof oldOptions === 'object') migrated.options = oldOptions;
+    const oldPct = parseFloat(localStorage.getItem('sp_salary_pct_v1'));
+    if (Number.isFinite(oldPct)) migrated.salaryPct = oldPct;
+    const oldSeen = localRead('sp_notif_seen_v1', null);
+    if (Array.isArray(oldSeen)) migrated.seenCharges = oldSeen;
+    return migrated;
+  }
+
+  async function localRequest(path, options = {}) {
+    const method = (options.method || 'GET').toUpperCase();
+    const url = new URL(path, 'http://local/');
+    const route = url.pathname.replace(/^\//, '');
+    const body = options.body ? JSON.parse(options.body) : null;
+
+    if (route === 'clients.php') {
+      const list = localRead(LOCAL_CLIENTS_KEY, []);
+      if (method === 'GET') {
+        return { ok: true, clients: [...list].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')) };
+      }
+      if (method === 'POST') {
+        const incoming = url.searchParams.get('bulk') === '1' ? body : [body];
+        incoming.forEach((client) => {
+          if (!client || typeof client.id !== 'string') throw new Error('Cliente sem id válido.');
+          const idx = list.findIndex(c => c.id === client.id);
+          if (idx >= 0) list[idx] = client; else list.push(client);
+        });
+        localWrite(LOCAL_CLIENTS_KEY, list);
+        return { ok: true, saved: incoming.length };
+      }
+      if (method === 'DELETE') {
+        localWrite(LOCAL_CLIENTS_KEY, list.filter(c => c.id !== url.searchParams.get('id')));
+        return { ok: true };
+      }
+    }
+    if (route === 'settings.php') {
+      const all = localSettings();
+      if (method === 'GET') return { ok: true, settings: all };
+      if (method === 'PUT') {
+        all[body.key] = body.value;
+        localWrite(LOCAL_SETTINGS_KEY, all);
+        return { ok: true };
+      }
+    }
+    throw new Error('Rota desconhecida: ' + method + ' ' + path);
+  }
+
+  /* ===== Comunicação com a API (modo server) ===== */
   async function request(path, options = {}) {
+    if (IS_LOCAL) return localRequest(path, options);
     const res = await fetch(API + path, {
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
@@ -52,7 +125,7 @@ const STORE = (function () {
       const main = document.querySelector('.main') || document.body;
       const box = document.createElement('div');
       box.className = 'load-error';
-      box.innerHTML = `<strong>Não foi possível carregar os dados do servidor.</strong><span></span>
+      box.innerHTML = `<strong>Não foi possível carregar os dados.</strong><span></span>
         <button type="button" class="btn btn-outline btn-sm">Tentar de novo</button>`;
       box.querySelector('span').textContent = err && err.message ? err.message : '';
       box.querySelector('button').addEventListener('click', () => window.location.reload());
@@ -71,7 +144,7 @@ const STORE = (function () {
   function notifyError(err) {
     console.error(err);
     const toast = document.getElementById('toast');
-    const msg = 'Não foi possível salvar no servidor: ' + (err && err.message ? err.message : 'erro desconhecido');
+    const msg = (IS_LOCAL ? 'Não foi possível salvar: ' : 'Não foi possível salvar no servidor: ') + (err && err.message ? err.message : 'erro desconhecido');
     if (toast) {
       toast.textContent = msg;
       toast.classList.add('show');
@@ -426,7 +499,7 @@ const STORE = (function () {
   }
 
   return {
-    onReady, request,
+    onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
     splitValues, valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
