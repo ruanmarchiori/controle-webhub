@@ -9,6 +9,11 @@
 </head>
 <body>
 
+<svg style="display:none">
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9.9 5.2A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a15.7 15.7 0 0 1-3.2 4.1M6.2 6.8C3.7 8.5 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 3.4-.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 9.8a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
 <div class="auth-page">
   <div class="auth-card">
     <div class="brand">
@@ -25,7 +30,12 @@
       </label>
       <label class="field">
         <span>Senha</span>
-        <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+        <div class="password-field">
+          <input type="password" name="password" id="loginPassword" required autocomplete="current-password" placeholder="••••••••">
+          <button type="button" class="password-toggle" id="loginPasswordToggle" aria-label="Mostrar senha">
+            <svg class="icon-sm"><use href="#i-eye"/></svg>
+          </button>
+        </div>
       </label>
       <p class="auth-msg" id="authMsg"></p>
       <button type="submit" class="btn btn-lime auth-submit">Entrar</button>
@@ -44,6 +54,16 @@
   const form = document.getElementById('loginForm');
   const msgEl = document.getElementById('authMsg');
   const submitBtn = form.querySelector('.auth-submit');
+
+  /* Olhinho: mostra/oculta a senha digitada (mesmo padrão da tela de Configurações). */
+  const pwdInput = document.getElementById('loginPassword');
+  const pwdToggle = document.getElementById('loginPasswordToggle');
+  pwdToggle.addEventListener('click', () => {
+    const showing = pwdInput.type === 'text';
+    pwdInput.type = showing ? 'password' : 'text';
+    pwdToggle.querySelector('use').setAttribute('href', showing ? '#i-eye' : '#i-eye-off');
+    pwdToggle.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
