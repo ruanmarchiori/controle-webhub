@@ -325,9 +325,18 @@ const STORE = (function () {
     return acc;
   }
 
+  /* Escapa texto digitado pelo usuário antes de entrar em innerHTML — evita que um nome
+     de empresa com <script> ou aspas vire código na página (XSS). */
+  function esc(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   function initials(name) {
     if (!name) return '?';
-    return name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+    /* Já sai escapado: as telas colocam isso direto em innerHTML. */
+    return esc(name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join(''));
   }
 
   function formatBRL(value) {
@@ -419,7 +428,7 @@ const STORE = (function () {
   return {
     onReady, request,
     getAll, getById, blankClient, upsert, remove, importClients,
-    splitValues, valorRecebido, financeiro, financeiroPorMes, totals, initials, formatBRL, formatDate, getDueCharges,
+    splitValues, valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,
     getSalaryPct, setSalaryPct, saveSetting, getSettings, DEFAULT_SALARY_PCT,

@@ -153,8 +153,8 @@ STORE.onReady(() => {
         </div>
         <div class="client-card-body">
           <div>
-            <div class="client-card-name">${c.empresa || 'Sem nome'}</div>
-            <div class="client-card-role">${c.nomeCliente ? c.nomeCliente + ' • ' : ''}${c.tipoProjeto || '—'}</div>
+            <div class="client-card-name">${STORE.esc(c.empresa || 'Sem nome')}</div>
+            <div class="client-card-role">${c.nomeCliente ? STORE.esc(c.nomeCliente) + ' • ' : ''}${STORE.esc(c.tipoProjeto || '—')}</div>
           </div>
           <div class="client-card-value">${STORE.formatBRL(c.valor)}</div>
           <div class="client-card-foot">
@@ -190,7 +190,7 @@ STORE.onReady(() => {
     if (!clients.length) { openModal('Projetos fechados', emptyMsg); return; }
     const rows = clients.map(c => `
       <div class="modal-row">
-        <div class="modal-row-info"><strong>${c.empresa || 'Sem nome'}</strong><span>${c.tipoProjeto || '—'} • ${statusLabel(c)}</span></div>
+        <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${STORE.esc(c.tipoProjeto || '—')} • ${statusLabel(c)}</span></div>
         <div class="modal-row-value">${STORE.formatBRL(c.valor)}</div>
       </div>`).join('');
     openModal('Projetos fechados', `

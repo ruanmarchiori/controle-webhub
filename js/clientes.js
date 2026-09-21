@@ -30,8 +30,8 @@ STORE.onReady(() => {
         </div>
         <div class="client-card-body">
           <div>
-            <div class="client-card-name">${c.empresa || 'Sem nome'}</div>
-            <div class="client-card-role">${c.nomeCliente ? c.nomeCliente + ' • ' : ''}${c.tipoProjeto || '—'} ${c.devResponsavel ? '• ' + c.devResponsavel : ''}${c.origem ? ' • ' + c.origem : ''}</div>
+            <div class="client-card-name">${STORE.esc(c.empresa || 'Sem nome')}</div>
+            <div class="client-card-role">${c.nomeCliente ? STORE.esc(c.nomeCliente) + ' • ' : ''}${STORE.esc(c.tipoProjeto || '—')} ${c.devResponsavel ? '• ' + STORE.esc(c.devResponsavel) : ''}${c.origem ? ' • ' + STORE.esc(c.origem) : ''}</div>
           </div>
           <div class="client-card-value">${STORE.formatBRL(c.valor)}</div>
           <div class="client-card-foot">

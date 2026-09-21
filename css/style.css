@@ -210,7 +210,11 @@ html.sidebar-collapsed .main{margin-left:76px;}
 .donut-center{
   position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
 }
-.donut-center strong{font-size:1.15rem;}
+/* O total fica dentro de um círculo de 150px — o buraco da rosca tem ~108px. Um valor com
+   5 dígitos (R$ 16.345,67) já não cabe no tamanho padrão; encolhe conforme o tamanho. */
+.donut-center strong{font-size:1.15rem;max-width:104px;text-align:center;line-height:1.1;}
+.donut-center strong.is-long{font-size:.92rem;}
+.donut-center strong.is-xlong{font-size:.78rem;}
 .donut-center span{font-size:.7rem;color:var(--gray-500);}
 .legend{display:flex;flex-direction:column;gap:12px;flex:1;}
 .legend-item{display:flex;align-items:center;gap:10px;font-size:.82rem;}

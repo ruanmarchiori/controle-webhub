@@ -1,6 +1,21 @@
-# Configuração do Apache (Hostinger). Não lista pastas e manda quem abrir a raiz para o painel.
+# Configuração do Apache/LiteSpeed (Hostinger).
 Options -Indexes
 DirectoryIndex index.html
+
+# O deploy via Git deixa a pasta .git dentro do site — ela tem TODO o código e o histórico.
+# Também não há motivo pra servir os arquivos de documentação/configuração do repositório.
+RedirectMatch 404 /\.git
+<FilesMatch "^(\.gitignore|\.gitattributes|README\.md|DEPLOY\.md)$">
+  Require all denied
+</FilesMatch>
+
+# Cabeçalhos de segurança: impede que o painel seja embutido em iframe de outro site
+# (clickjacking) e que o navegador "adivinhe" tipos de arquivo.
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "same-origin"
+</IfModule>
 
 # Forçar HTTPS. Na Hostinger prefira ligar "Forçar HTTPS" em Segurança → SSL no hPanel;
 # se quiser fazer por aqui, descomente as 3 linhas abaixo.

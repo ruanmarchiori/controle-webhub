@@ -8,6 +8,16 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: no-store');
 
+/* Qualquer erro inesperado (banco fora do ar, bug) vira uma resposta JSON genérica — nunca
+   a tela de erro do PHP, que mostraria caminhos, consultas SQL e trechos de código. */
+ini_set('display_errors', '0');
+set_exception_handler(function (Throwable $e): void {
+  error_log('[Controle WebHub] ' . get_class($e) . ': ' . $e->getMessage() . ' em ' . $e->getFile() . ':' . $e->getLine());
+  http_response_code(500);
+  echo json_encode(['ok' => false, 'error' => 'Erro interno no servidor. Tente de novo em instantes.'], JSON_UNESCAPED_UNICODE);
+  exit;
+});
+
 const SESSION_COOKIE = 'sp_token';
 const SESSION_DAYS = 90;           // sessão dura 90 dias sem uso, ou até clicar em "Sair"
 const LOGIN_MAX_FAILS = 10;        // tentativas erradas por IP antes de bloquear...
@@ -70,8 +80,11 @@ function requireSameOrigin(): void {
   }
 }
 
+/* IP de quem está tentando logar (para o bloqueio por tentativas). Se o site estiver atrás
+   do Cloudflare, o IP real vem nesse header; senão, o REMOTE_ADDR já é o do visitante. */
 function clientIp(): string {
-  return substr((string)($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'), 0, 45);
+  $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+  return substr((string)$ip, 0, 45);
 }
 
 /* ===== Sessão: token aleatório no cookie, só o hash fica no banco ===== */

@@ -12,7 +12,7 @@ STORE.onReady(() => {
     return `
       <a class="notif-item" href="cliente.html?id=${item.clientId}">
         <div class="notif-item-info">
-          <strong>${item.empresa || 'Sem nome'}</strong>
+          <strong>${STORE.esc(item.empresa || 'Sem nome')}</strong>
           <span>Vencimento: ${STORE.formatDate(item.data)}</span>
         </div>
         <strong>${STORE.formatBRL(item.valor)}</strong>

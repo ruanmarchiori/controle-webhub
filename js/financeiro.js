@@ -106,7 +106,12 @@ STORE.onReady(() => {
       options: { cutout: '72%', plugins: { legend: { display: false } }, maintainAspectRatio: false }
     });
   }
-  document.getElementById('donutTotal').textContent = STORE.formatBRL(allTimeTotals.totalFechado).replace(',00', '');
+  const donutTotalEl = document.getElementById('donutTotal');
+  donutTotalEl.textContent = STORE.formatBRL(allTimeTotals.totalFechado).replace(',00', '');
+  /* Valores longos (a partir de 5 dígitos) encolhem pra caber no centro da rosca. */
+  const totalLen = donutTotalEl.textContent.length;
+  donutTotalEl.classList.toggle('is-long', totalLen > 10 && totalLen <= 13);
+  donutTotalEl.classList.toggle('is-xlong', totalLen > 13);
   document.getElementById('splitLegend').innerHTML = `
     <div class="legend-item"><span class="legend-dot" style="background:#5b8def"></span>Agência<strong>${STORE.formatBRL(allTimeTotals.totalAgencia)}</strong></div>
     <div class="legend-item"><span class="legend-dot" style="background:#15161a"></span>Eu<strong>${STORE.formatBRL(allTimeTotals.totalEu)}</strong></div>
@@ -152,7 +157,7 @@ STORE.onReady(() => {
       const situacao = f.pendenteReceber <= 0 ? 'Total recebido' : (f.recebido > 0 ? 'Recebido parcial' : 'Nada recebido ainda');
       return `
         <div class="modal-row">
-          <div class="modal-row-info"><strong>${c.empresa || 'Sem nome'}</strong><span>${situacao} • total ${STORE.formatBRL(f.valorTotal)}</span></div>
+          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${situacao} • total ${STORE.formatBRL(f.valorTotal)}</span></div>
           <div class="modal-row-value">${STORE.formatBRL(f.recebido)}</div>
         </div>`;
     }).join('');
@@ -178,10 +183,10 @@ STORE.onReady(() => {
         const g = byDev[name];
         const rows = g.rows.map(({ c, f }) => `
           <div class="modal-row">
-            <div class="modal-row-info"><strong>${c.empresa || 'Sem nome'}</strong><span>${c.devPago ? 'Pago' : 'A pagar'} • cota ${STORE.formatBRL(f.devValor)}</span></div>
+            <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${c.devPago ? 'Pago' : 'A pagar'} • cota ${STORE.formatBRL(f.devValor)}</span></div>
             <div class="modal-row-value">${STORE.formatBRL(f.devRepassado)}</div>
           </div>`).join('');
-        return `<div class="modal-group"><div class="modal-group-title">${name} — ${STORE.formatBRL(g.repassado)}${g.pendente > 0 ? ` (${STORE.formatBRL(g.pendente)} pendente)` : ''}</div>${rows}</div>`;
+        return `<div class="modal-group"><div class="modal-group-title">${STORE.esc(name)} — ${STORE.formatBRL(g.repassado)}${g.pendente > 0 ? ` (${STORE.formatBRL(g.pendente)} pendente)` : ''}</div>${rows}</div>`;
       }).join('');
     return groupsHTML + `<div class="modal-total-row"><span>Total repassado</span><span>${STORE.formatBRL(t.totalDevRepassado)}</span></div>
       ${t.totalDevPendente > 0 ? `<div class="modal-total-row"><span>Pendente</span><span>${STORE.formatBRL(t.totalDevPendente)}</span></div>` : ''}`;
@@ -191,7 +196,7 @@ STORE.onReady(() => {
     if (!entries.length) return emptyMsg;
     const rows = entries.map(({ c, f }) => `
         <div class="modal-row">
-          <div class="modal-row-info"><strong>${c.empresa || 'Sem nome'}</strong><span>${c.agenciaPaga ? 'Pago' : 'A pagar'} • ${c.splitAgencia}% de ${STORE.formatBRL(f.recebido)} recebidos</span></div>
+          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${c.agenciaPaga ? 'Pago' : 'A pagar'} • ${c.splitAgencia}% de ${STORE.formatBRL(f.recebido)} recebidos</span></div>
           <div class="modal-row-value">${STORE.formatBRL(f.agenciaRepassada)}</div>
         </div>`).join('');
     return `
@@ -204,7 +209,7 @@ STORE.onReady(() => {
     if (!entries.length) return emptyMsg;
     const rows = entries.map(({ c, f }) => `
         <div class="modal-row">
-          <div class="modal-row-info"><strong>${c.empresa || 'Sem nome'}</strong><span>${c.splitEu}% de ${STORE.formatBRL(f.recebido)} recebidos</span></div>
+          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${c.splitEu}% de ${STORE.formatBRL(f.recebido)} recebidos</span></div>
           <div class="modal-row-value">${STORE.formatBRL(f.meuSaldo)}</div>
         </div>`).join('');
     return `
@@ -218,7 +223,7 @@ STORE.onReady(() => {
     if (!entries.length) return emptyMsg;
     const rows = entries.map(({ c, f }) => `
         <div class="modal-row">
-          <div class="modal-row-info"><strong>${c.empresa || 'Sem nome'}</strong><span>${c.tipoPagamento === 'parcelado' ? 'Parcelado' : 'À vista'} • ${STORE.formatBRL(f.recebido)} recebido${f.pendenteReceber > 0 ? `, ${STORE.formatBRL(f.pendenteReceber)} pendente` : ''}</span></div>
+          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${c.tipoPagamento === 'parcelado' ? 'Parcelado' : 'À vista'} • ${STORE.formatBRL(f.recebido)} recebido${f.pendenteReceber > 0 ? `, ${STORE.formatBRL(f.pendenteReceber)} pendente` : ''}</span></div>
           <div class="modal-row-value">${STORE.formatBRL(f.valorTotal)}</div>
         </div>`).join('');
     return `

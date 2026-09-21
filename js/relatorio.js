@@ -92,8 +92,8 @@ STORE.onReady(() => {
     } else {
       tbody.innerHTML = entries.map(({ c, f }) => `
         <tr>
-          <td>${c.empresa || 'Sem nome'}</td>
-          <td>${c.tipoProjeto || '—'}</td>
+          <td>${STORE.esc(c.empresa || 'Sem nome')}</td>
+          <td>${STORE.esc(c.tipoProjeto || '—')}</td>
           <td>${STORE.formatBRL(f.valorTotal)}</td>
           <td>${statusLabel(c)}</td>
         </tr>`).join('');

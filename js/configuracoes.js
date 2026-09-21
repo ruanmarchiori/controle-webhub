@@ -78,9 +78,9 @@ STORE.onReady(() => {
     const container = document.getElementById(CHIP_CONTAINERS[field]);
     container.innerHTML = STORE.getOptions(field).map((value) => {
       if (STORE.isProtectedOption(field, value)) {
-        return `<span class="option-chip">${value}</span>`;
+        return `<span class="option-chip">${STORE.esc(value)}</span>`;
       }
-      return `<span class="option-chip is-custom">${value}<button type="button" data-remove="${encodeURIComponent(value)}" aria-label="Remover ${value}">×</button></span>`;
+      return `<span class="option-chip is-custom">${STORE.esc(value)}<button type="button" data-remove="${encodeURIComponent(value)}" aria-label="Remover ${STORE.esc(value)}">×</button></span>`;
     }).join('');
     container.querySelectorAll('[data-remove]').forEach((btn) => {
       btn.addEventListener('click', () => {
