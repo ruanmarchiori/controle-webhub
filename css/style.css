@@ -390,17 +390,22 @@ html.sidebar-collapsed .main{margin-left:76px;}
 
 /* Marcações de pagamento (cliente / dev / agência), cada uma com a data em que foi feita.
    No parcelado ficam dentro de cada parcela; no à vista, na seção "Situação de pagamento". */
+/* Colunas largas o bastante pra "Cliente pagou em 22/09/2026" caber numa linha só —
+   com colunas estreitas a data pulava pra baixo do texto. */
 .parcela-pays{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px 18px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:10px 20px;
   border-top:1.5px solid var(--gray-100);padding-top:10px;
 }
 .pay-rows{display:flex;flex-direction:column;gap:10px;padding:2px 0 4px;}
-.pay-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.pay-row .checkbox-field{min-width:152px;}
-.pay-date{display:flex;align-items:center;gap:7px;font-size:.78rem;font-weight:600;color:var(--gray-500);}
+/* Checkbox, texto e data andam juntos: a data vem logo depois do texto, sem coluna fixa
+   separando os dois (assim "Dev pago em 25/09" se lê como uma frase só). */
+.pay-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.pay-row .checkbox-field{gap:8px;}
+.pay-date{display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;color:var(--gray-500);}
 .pay-date input{
-  padding:6px 10px;border-radius:8px;border:1.5px solid var(--gray-100);
+  padding:6px 9px;border-radius:8px;border:1.5px solid var(--gray-100);
   background:var(--white);font-size:.8rem;font-family:inherit;color:var(--ink);
+  width:128px;
 }
 .pay-date input:disabled{opacity:.45;}
 
