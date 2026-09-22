@@ -379,12 +379,35 @@ html.sidebar-collapsed .main{margin-left:76px;}
 .split-total.is-ok{background:#e4f9ea;color:#1e8a4c;}
 .split-total.is-bad{background:#fdecec;color:var(--red);}
 
-.parcelas-list{display:flex;flex-direction:column;gap:10px;}
+.parcelas-list{display:flex;flex-direction:column;gap:12px;}
 .parcela-row{
-  display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:center;
-  background:var(--gray-50);padding:10px 12px;border-radius:12px;
+  display:flex;flex-direction:column;gap:10px;
+  background:var(--gray-50);padding:12px;border-radius:12px;
 }
+.parcela-main{display:grid;grid-template-columns:auto 1fr 1fr auto;gap:10px;align-items:center;}
+.parcela-num{font-size:.8rem;font-weight:700;color:var(--gray-500);min-width:22px;}
 .parcela-row input{padding:9px 12px;border-radius:9px;border:1.5px solid var(--gray-100);background:var(--white);font-size:.85rem;}
+
+/* Marcações de pagamento (cliente / dev / agência), cada uma com a data em que foi feita.
+   No parcelado ficam dentro de cada parcela; no à vista, na seção "Situação de pagamento". */
+.parcela-pays{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px 18px;
+  border-top:1.5px solid var(--gray-100);padding-top:10px;
+}
+.pay-rows{display:flex;flex-direction:column;gap:10px;padding:2px 0 4px;}
+.pay-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.pay-row .checkbox-field{min-width:152px;}
+.pay-date{display:flex;align-items:center;gap:7px;font-size:.78rem;font-weight:600;color:var(--gray-500);}
+.pay-date input{
+  padding:6px 10px;border-radius:8px;border:1.5px solid var(--gray-100);
+  background:var(--white);font-size:.8rem;font-family:inherit;color:var(--ink);
+}
+.pay-date input:disabled{opacity:.45;}
+
+/* Alternador "Porcentagem / Valor (R$)" da divisão. */
+.split-mode{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.split-mode-label{font-size:.8rem;font-weight:700;color:var(--gray-700);}
+.split-total-action{font-size:.78rem;font-weight:700;text-decoration:underline;color:inherit;}
 .icon-remove{
   width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;
   color:var(--gray-500);background:var(--white);
@@ -515,8 +538,13 @@ html.sidebar-collapsed .main{margin-left:76px;}
   .stat-grid{grid-template-columns:repeat(2,1fr);gap:12px;}
   .stat-card{padding:16px;min-height:auto;gap:10px;}
   .stat-value{font-size:1.2rem;}
-  .parcela-row{grid-template-columns:1fr;}
-  .parcela-row .icon-remove{justify-self:end;}
+  /* Celular: número + vencimento + lixeira na primeira linha, valor na segunda. */
+  .parcela-main{grid-template-columns:auto 1fr auto;grid-template-areas:"num data lixo" ". valor valor";}
+  .parcela-num{grid-area:num;}
+  .parcela-main input[data-field="data"]{grid-area:data;}
+  .parcela-main input[data-field="valor"]{grid-area:valor;}
+  .parcela-main .icon-remove{grid-area:lixo;}
+  .parcela-pays{grid-template-columns:1fr;}
   .main{padding:18px 14px 40px;}
   .topbar{margin-bottom:20px;}
   .topbar-title h1{font-size:1.25rem;}

@@ -1,5 +1,7 @@
 STORE.onReady(() => {
 
+  const pctTexto = (fracao) => (Math.round(fracao * 10000) / 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%';
+
   const clients = STORE.getAll();
 
   document.getElementById('clientCountPill').textContent = `${clients.length} cliente${clients.length === 1 ? '' : 's'}`;
@@ -167,6 +169,13 @@ STORE.onReady(() => {
       ${t.totalPendenteReceber > 0 ? `<div class="modal-total-row"><span>Ainda falta receber</span><span>${STORE.formatBRL(t.totalPendenteReceber)}</span></div>` : ''}`;
   }
 
+  /* Com o repasse marcado parcela a parcela, um projeto pode estar só PARCIALMENTE
+     repassado — não é mais tudo-ou-nada. */
+  function statusRepasse(repassado, pendente) {
+    if (pendente <= 0.009) return repassado > 0 ? 'Pago' : '—';
+    return repassado > 0.009 ? 'Parcial' : 'A pagar';
+  }
+
   function devModalBody({ entries, totals: t }) {
     if (!entries.length) return emptyMsg;
     const byDev = {};
@@ -183,7 +192,7 @@ STORE.onReady(() => {
         const g = byDev[name];
         const rows = g.rows.map(({ c, f }) => `
           <div class="modal-row">
-            <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${c.devPago ? 'Pago' : 'A pagar'} • cota ${STORE.formatBRL(f.devValor)}</span></div>
+            <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(f.devRepassado, f.devPendente)} • cota ${STORE.formatBRL(f.devValor)}</span></div>
             <div class="modal-row-value">${STORE.formatBRL(f.devRepassado)}</div>
           </div>`).join('');
         return `<div class="modal-group"><div class="modal-group-title">${STORE.esc(name)} — ${STORE.formatBRL(g.repassado)}${g.pendente > 0 ? ` (${STORE.formatBRL(g.pendente)} pendente)` : ''}</div>${rows}</div>`;
@@ -196,7 +205,7 @@ STORE.onReady(() => {
     if (!entries.length) return emptyMsg;
     const rows = entries.map(({ c, f }) => `
         <div class="modal-row">
-          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${c.agenciaPaga ? 'Pago' : 'A pagar'} • ${c.splitAgencia}% de ${STORE.formatBRL(f.recebido)} recebidos</span></div>
+          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(f.agenciaRepassada, f.agenciaPendente)} • ${pctTexto(STORE.splitPercents(c).agencia)} de ${STORE.formatBRL(f.recebido)} recebidos</span></div>
           <div class="modal-row-value">${STORE.formatBRL(f.agenciaRepassada)}</div>
         </div>`).join('');
     return `
@@ -209,7 +218,7 @@ STORE.onReady(() => {
     if (!entries.length) return emptyMsg;
     const rows = entries.map(({ c, f }) => `
         <div class="modal-row">
-          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${c.splitEu}% de ${STORE.formatBRL(f.recebido)} recebidos</span></div>
+          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${pctTexto(STORE.splitPercents(c).eu)} de ${STORE.formatBRL(f.recebido)} recebidos</span></div>
           <div class="modal-row-value">${STORE.formatBRL(f.meuSaldo)}</div>
         </div>`).join('');
     return `

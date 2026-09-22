@@ -134,35 +134,65 @@
       </div>
       <div class="parcelas-list" id="parcelasList" hidden></div>
 
-      <div class="section-title">Situação de pagamento</div>
-      <div class="checkbox-row">
-        <label class="checkbox-field" id="clientePagoField">
-          <input type="checkbox" name="clientePago">
-          <span>Cliente já pagou</span>
-        </label>
-        <label class="checkbox-field" id="devPagoField">
-          <input type="checkbox" name="devPago">
-          <span>Dev já foi pago</span>
-        </label>
-        <label class="checkbox-field">
-          <input type="checkbox" name="agenciaPaga">
-          <span>Agência já foi paga</span>
-        </label>
+      <div class="section-title" id="situacaoTitle">Situação de pagamento</div>
+      <p class="field-hint" id="situacaoHint" style="margin:-8px 0 12px;" hidden>No parcelado, marque o pagamento ao dev e à agência em cada parcela, logo acima — assim fica registrado a data de cada repasse.</p>
+      <div class="pay-rows" id="payRows">
+        <div class="pay-row" id="clientePagoField">
+          <label class="checkbox-field">
+            <input type="checkbox" name="clientePago">
+            <span>Cliente já pagou</span>
+          </label>
+          <label class="pay-date">
+            <span>em</span>
+            <input type="date" name="clientePagoEm" aria-label="Data em que o cliente pagou">
+          </label>
+        </div>
+        <div class="pay-row" id="devPagoField">
+          <label class="checkbox-field">
+            <input type="checkbox" name="devPago">
+            <span>Dev já foi pago</span>
+          </label>
+          <label class="pay-date">
+            <span>em</span>
+            <input type="date" name="devPagoEm" aria-label="Data em que o dev foi pago">
+          </label>
+        </div>
+        <div class="pay-row" id="agenciaPagaField">
+          <label class="checkbox-field">
+            <input type="checkbox" name="agenciaPaga">
+            <span>Agência já foi paga</span>
+          </label>
+          <label class="pay-date">
+            <span>em</span>
+            <input type="date" name="agenciaPagaEm" aria-label="Data em que a agência foi paga">
+          </label>
+        </div>
       </div>
 
       <div class="section-title" id="splitSectionTitle">Divisão do valor entre agência, você e o dev</div>
+      <div class="split-mode" id="splitMode">
+        <span class="split-mode-label">Dividir por:</span>
+        <div class="scope-toggle">
+          <button type="button" class="scope-btn active" data-modo="percentual">Porcentagem</button>
+          <button type="button" class="scope-btn" data-modo="valor">Valor (R$)</button>
+        </div>
+      </div>
+      <p class="field-hint" id="splitModeHint" style="margin:-4px 0 14px;">A soma das porcentagens precisa dar 100%.</p>
       <div class="split-row" id="splitRow">
         <label class="field">
-          <span>Agência (%)</span>
-          <input type="number" name="splitAgencia" min="0" max="100" step="1" value="20">
+          <span id="labelAgencia">Agência (%)</span>
+          <input type="number" name="splitAgencia" min="0" max="100" step="0.01" value="20">
+          <input type="text" inputmode="decimal" autocomplete="off" name="splitAgenciaValor" placeholder="0,00" hidden>
         </label>
         <label class="field">
-          <span>Eu (%)</span>
-          <input type="number" name="splitEu" min="0" max="100" step="1" value="40">
+          <span id="labelEu">Eu (%)</span>
+          <input type="number" name="splitEu" min="0" max="100" step="0.01" value="40">
+          <input type="text" inputmode="decimal" autocomplete="off" name="splitEuValor" placeholder="0,00" hidden>
         </label>
         <label class="field" id="splitDevField">
-          <span>Dev (%)</span>
-          <input type="number" name="splitDev" min="0" max="100" step="1" value="40">
+          <span id="labelDev">Dev (%)</span>
+          <input type="number" name="splitDev" min="0" max="100" step="0.01" value="40">
+          <input type="text" inputmode="decimal" autocomplete="off" name="splitDevValor" placeholder="0,00" hidden>
         </label>
       </div>
       <div class="split-breakdown" id="splitBreakdown">
@@ -170,7 +200,9 @@
         <div class="split-card is-eu"><span>Eu recebo</span><strong id="splitEuValue">R$ 0,00</strong><small id="splitEuPct">40%</small></div>
         <div class="split-card is-dev" id="splitDevCard"><span>Dev recebe</span><strong id="splitDevValue">R$ 0,00</strong><small id="splitDevPct">40%</small></div>
       </div>
-      <div class="split-total" id="splitTotal">Soma: 100%</div>
+      <div class="split-total" id="splitTotal">Soma: 100%
+        <button type="button" class="btn-link-reset split-total-action" id="useSplitSumBtn" hidden></button>
+      </div>
 
       <div class="section-title">Situação financeira real deste projeto</div>
       <p class="field-hint" style="margin:-8px 0 12px;">Aqui é o dinheiro que já entrou/saiu de verdade — diferente da divisão acima, que é só o combinado.</p>

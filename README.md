@@ -55,6 +55,8 @@ importar.html     traz dados de um backup ou da versão antiga (localStorage)
 
 ## Divisão do valor
 
+**Dois modos, escolhidos no cadastro ("Dividir por"):** por **porcentagem** (padrão, precisa somar 100%) ou por **valor em R$** — para quando o dev passa o preço dele e você soma a sua margem em cima, sem virar uma % redonda. No modo valor a soma precisa bater com o valor do projeto, e há um atalho para usar a soma digitada como valor do projeto. As porcentagens equivalentes continuam sendo calculadas, porque é assim que cada parcela é repartida mês a mês.
+
 Por padrão, cada cliente novo vem com **20% agência / 40% eu / 40% dev**, mas as três porcentagens são editáveis por cliente (só é preciso que a soma dê 100%). Essa divisão é só o **combinado** — quanto cada parte deveria receber se o valor todo fosse recebido e repassado. O gráfico de rosca "Divisão do valor total" no dashboard mostra esse combinado, não considera se alguém já pagou algo.
 
 **Lista de devs:** o campo "Dev responsável" em `cliente.html` é uma lista (igual "Tipo de projeto"/"Origem do cliente"), gerenciada em **Configurações → Listas personalizadas**. Se o dev escolhido for **"Ruan"** (você mesmo), a divisão daquele projeto vira só **agência + você** — o campo/checkbox/card de dev some da tela e qualquer % que estivesse em "Dev" é somado em "Eu" automaticamente, já que não faz sentido repassar pra um dev separado quando você mesmo faz o projeto.
@@ -63,12 +65,11 @@ Por padrão, cada cliente novo vem com **20% agência / 40% eu / 40% dev**, mas 
 
 ## Situação financeira real (dinheiro que já entrou/saiu de verdade)
 
-Separado da divisão combinada, cada cliente tem 3 marcações de pagamento em `cliente.html`:
-- **Cliente já pagou** (só aparece pra pagamento à vista — pra parcelado, o "recebido" é calculado automaticamente somando as parcelas marcadas como pagas).
-- **Dev já foi pago**.
-- **Agência já foi paga**.
+Separado da divisão combinada, cada cliente tem 3 marcações de pagamento — **Cliente pagou**, **Dev pago** e **Agência paga** — e cada uma guarda **a data em que o pagamento foi feito** (ao marcar, a data de hoje é preenchida sozinha e pode ser trocada).
 
-Com base nessas marcações, cada cliente mostra um painel "Situação financeira real" (recebido do cliente, repassado ao dev, repassado à agência, saldo que sobra de fato). A aba **Financeiro** soma isso de todos os clientes — veja a seção abaixo. O relatório mensal (`relatorio.html`) usa os mesmos números reais, pra não contradizer o resto do sistema.
+- **Projeto parcelado:** as três marcações ficam **em cada parcela**, porque um projeto que começa num mês e termina no outro tem repasses em datas diferentes (o dev costuma ser pago no início, a agência no fim do mês). O repasse deixa de ser tudo-ou-nada: o Financeiro mostra "Parcial" quando só parte das parcelas foi repassada.
+- **Projeto à vista:** continua com uma marcação única por projeto, na seção "Situação de pagamento".
+- Clientes cadastrados antes dessa mudança continuam valendo: a marcação antiga do projeto inteiro passa a valer para todas as parcelas ao abrir o cadastro.
 
 ## Financeiro da empresa
 

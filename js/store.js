@@ -182,16 +182,26 @@ const STORE = (function () {
       tipoProjeto: '',
       origem: '',
       devResponsavel: '',
+      /* Marcações do projeto à vista (no parcelado cada parcela tem as suas) — cada uma
+         com a data em que o pagamento foi feito, pra não se perder nos repasses. */
       devPago: false,
+      devPagoEm: '',
       clientePago: false,
+      clientePagoEm: '',
       agenciaPaga: false,
+      agenciaPagaEm: '',
       tipoPagamento: 'avista',
       dataInicio: '',
       prazoFinal: '',
       status: 'desenvolvimento',
+      /* 'percentual' (padrão) ou 'valor' — veja splitValues/splitPercents. */
+      splitModo: 'percentual',
       splitAgencia: 20,
       splitEu: 40,
       splitDev: 40,
+      splitAgenciaValor: 0,
+      splitEuValor: 0,
+      splitDevValor: 0,
       parcelas: [],
       createdAt: new Date().toISOString()
     };
@@ -274,13 +284,115 @@ const STORE = (function () {
   }
 
   /* ===== Cálculos financeiros ===== */
+
+  /* A divisão pode ser definida de dois jeitos (campo splitModo):
+     - 'percentual' (padrão): as três porcentagens somam 100% e valem sobre o valor total;
+     - 'valor': você digita em reais quanto cada um recebe (quando o dev passa o preço dele
+       e você joga a sua margem em cima, sem virar uma % redonda).
+     Nos dois casos as porcentagens equivalentes continuam guardadas, porque é assim que o
+     sistema reparte cada parcela entre agência/eu/dev mês a mês. */
+  function isSplitPorValor(client) {
+    return client.splitModo === 'valor';
+  }
+
   function splitValues(client) {
     const valor = parseFloat(client.valor) || 0;
+    if (isSplitPorValor(client)) {
+      return {
+        agencia: parseFloat(client.splitAgenciaValor) || 0,
+        eu: parseFloat(client.splitEuValor) || 0,
+        dev: parseFloat(client.splitDevValor) || 0
+      };
+    }
     return {
       agencia: valor * ((parseFloat(client.splitAgencia) || 0) / 100),
       eu: valor * ((parseFloat(client.splitEu) || 0) / 100),
       dev: valor * ((parseFloat(client.splitDev) || 0) / 100)
     };
+  }
+
+  /* Porcentagem de cada parte (0 a 1). No modo 'valor' é calculada a partir dos reais —
+     assim uma parcela isolada é repartida na mesma proporção do projeto inteiro. */
+  function splitPercents(client) {
+    if (isSplitPorValor(client)) {
+      const v = splitValues(client);
+      const base = v.agencia + v.eu + v.dev;
+      if (base > 0) return { agencia: v.agencia / base, eu: v.eu / base, dev: v.dev / base };
+    }
+    return {
+      agencia: (parseFloat(client.splitAgencia) || 0) / 100,
+      eu: (parseFloat(client.splitEu) || 0) / 100,
+      dev: (parseFloat(client.splitDev) || 0) / 100
+    };
+  }
+
+  /* ===== Repasses (pagamento ao dev e à agência) =====
+     Num projeto parcelado cada parcela tem os próprios "dev pago"/"agência paga" com data,
+     porque um projeto que começa num mês e termina no outro tem repasses em datas
+     diferentes. No à vista continua valendo a marcação única do projeto, também com data.
+
+     Compatibilidade: cliente salvo na versão antiga tinha só a marcação do projeto inteiro.
+     Se for parcelado e nenhuma parcela tiver marcação própria, a marcação antiga vale para
+     todas as parcelas (nada de repasse "some" ao abrir o cadastro). */
+  function parcelasComRepasse(client) {
+    const parcelas = client.parcelas || [];
+    const legacyDev = !!client.devPago && !parcelas.some(p => p.devPago !== undefined);
+    const legacyAgencia = !!client.agenciaPaga && !parcelas.some(p => p.agenciaPaga !== undefined);
+    return parcelas.map(p => ({
+      ...p,
+      devPago: legacyDev ? true : !!p.devPago,
+      agenciaPaga: legacyAgencia ? true : !!p.agenciaPaga
+    }));
+  }
+
+  /* Soma quanto já foi repassado ao dev e à agência, olhando parcela por parcela (ou a
+     marcação única, no à vista). `filtroMes` limita a um mês (usado pelo Financeiro). */
+  function repasses(client, filtroMes) {
+    const pct = splitPercents(client);
+    const split = splitValues(client);
+    let dev = 0, agencia = 0;
+
+    if (client.tipoPagamento === 'parcelado') {
+      parcelasComRepasse(client).forEach((p) => {
+        if (filtroMes && (p.data || '').slice(0, 7) !== filtroMes) return;
+        const v = parseFloat(p.valor) || 0;
+        if (p.devPago) dev += v * pct.dev;
+        if (p.agenciaPaga) agencia += v * pct.agencia;
+      });
+      return { dev, agencia };
+    }
+
+    const noMes = !filtroMes || (client.dataInicio || client.createdAt || '').slice(0, 7) === filtroMes;
+    if (!noMes) return { dev: 0, agencia: 0 };
+    return {
+      dev: client.devPago ? split.dev : 0,
+      agencia: client.agenciaPaga ? split.agencia : 0
+    };
+  }
+
+  /* Repasses que já deveriam ter sido feitos: o cliente pagou aquela parcela (o dinheiro
+     entrou), mas o dev e/ou a agência ainda não receberam a parte deles. É o que alimenta
+     o aviso de "falta repassar" — sem cobrar repasse de dinheiro que ainda não entrou. */
+  function repassesPendentes(client) {
+    const pct = splitPercents(client);
+    const split = splitValues(client);
+    const pendentes = [];
+
+    if (client.tipoPagamento === 'parcelado') {
+      parcelasComRepasse(client).forEach((p, parcelaIndex) => {
+        if (!p.pago) return;
+        const v = parseFloat(p.valor) || 0;
+        if (!p.devPago && pct.dev > 0) pendentes.push({ tipo: 'dev', parcelaIndex, data: p.data, valor: v * pct.dev });
+        if (!p.agenciaPaga && pct.agencia > 0) pendentes.push({ tipo: 'agencia', parcelaIndex, data: p.data, valor: v * pct.agencia });
+      });
+      return pendentes;
+    }
+
+    if (!client.clientePago) return pendentes;
+    const data = client.clientePagoEm || client.dataInicio || '';
+    if (!client.devPago && split.dev > 0) pendentes.push({ tipo: 'dev', parcelaIndex: -1, data, valor: split.dev });
+    if (!client.agenciaPaga && split.agencia > 0) pendentes.push({ tipo: 'agencia', parcelaIndex: -1, data, valor: split.agencia });
+    return pendentes;
   }
 
   /* Quanto do valor combinado já entrou de verdade (dinheiro na mão, não "fechado no papel").
@@ -300,9 +412,10 @@ const STORE = (function () {
     const valorTotal = parseFloat(client.valor) || 0;
     const split = splitValues(client);
     const recebido = valorRecebido(client);
-    const devRepassado = client.devPago ? split.dev : 0;
-    const agenciaRepassada = client.agenciaPaga ? split.agencia : 0;
-    const euPct = (parseFloat(client.splitEu) || 0) / 100;
+    const pago = repasses(client);
+    const devRepassado = pago.dev;
+    const agenciaRepassada = pago.agencia;
+    const euPct = splitPercents(client).eu;
     return {
       valorTotal,
       recebido,
@@ -348,13 +461,14 @@ const STORE = (function () {
       }
     }
 
-    const euPct = (parseFloat(client.splitEu) || 0) / 100;
-    const devPct = (parseFloat(client.splitDev) || 0) / 100;
-    const agenciaPct = (parseFloat(client.splitAgencia) || 0) / 100;
-    const devValor = recebido * devPct;
-    const agenciaValor = recebido * agenciaPct;
-    const devRepassado = client.devPago ? devValor : 0;
-    const agenciaRepassada = client.agenciaPaga ? agenciaValor : 0;
+    const pct = splitPercents(client);
+    const euPct = pct.eu;
+    const devValor = recebido * pct.dev;
+    const agenciaValor = recebido * pct.agencia;
+    /* Repasses daquele mês, contados parcela a parcela (cada uma tem a própria marcação). */
+    const pago = repasses(client, period);
+    const devRepassado = Math.min(pago.dev, devValor);
+    const agenciaRepassada = Math.min(pago.agencia, agenciaValor);
 
     return {
       valorTotal,
@@ -501,7 +615,8 @@ const STORE = (function () {
   return {
     onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
-    splitValues, valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, formatBRL, formatDate, getDueCharges,
+    splitValues, splitPercents, isSplitPorValor, parcelasComRepasse, repasses, repassesPendentes,
+    valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,
     getSalaryPct, setSalaryPct, saveSetting, getSettings, DEFAULT_SALARY_PCT,

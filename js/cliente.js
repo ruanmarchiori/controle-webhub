@@ -18,6 +18,12 @@ STORE.onReady(() => {
   const splitTotalEl = document.getElementById('splitTotal');
   const clientePagoField = document.getElementById('clientePagoField');
   const devPagoField = document.getElementById('devPagoField');
+  const payRows = document.getElementById('payRows');
+  const situacaoTitle = document.getElementById('situacaoTitle');
+  const situacaoHint = document.getElementById('situacaoHint');
+  const splitModeBtns = document.querySelectorAll('#splitMode .scope-btn');
+  const splitModeHint = document.getElementById('splitModeHint');
+  const useSplitSumBtn = document.getElementById('useSplitSumBtn');
   const splitSectionTitle = document.getElementById('splitSectionTitle');
   const splitRow = document.getElementById('splitRow');
   const splitDevField = document.getElementById('splitDevField');
@@ -92,6 +98,8 @@ STORE.onReady(() => {
     }
   }
 
+  const hoje = () => new Date().toISOString().slice(0, 10);
+
   let parcelas = [];
 
   function renderParcelas() {
@@ -99,12 +107,35 @@ STORE.onReady(() => {
       parcelasList.innerHTML = '<p class="field-hint">Nenhuma parcela cadastrada ainda.</p>';
       return;
     }
+    /* Cada parcela tem as três marcações de pagamento com a data de cada uma: quando o
+       cliente pagou aquela parcela, quando o dev recebeu a parte dele e quando a agência
+       recebeu a dela. É o que permite acompanhar projeto que começa num mês e termina no
+       outro, com repasses em datas diferentes. */
+    const payRow = (p, i, field, label) => `
+      <div class="pay-row"${field === 'devPago' && isSelfDev() ? ' hidden' : ''}>
+        <label class="checkbox-field">
+          <input type="checkbox" data-field="${field}" ${p[field] ? 'checked' : ''}>
+          <span>${label}</span>
+        </label>
+        <label class="pay-date">
+          <span>em</span>
+          <input type="date" data-field="${field}Em" value="${p[field + 'Em'] || ''}" aria-label="Data — ${label}, parcela ${i + 1}">
+        </label>
+      </div>`;
+
     parcelasList.innerHTML = parcelas.map((p, i) => `
       <div class="parcela-row" data-index="${i}">
-        <input type="date" data-field="data" value="${p.data || ''}" aria-label="Data da parcela">
-        <input type="text" inputmode="decimal" autocomplete="off" data-field="valor" value="${numberToMoneyString(p.valor)}" placeholder="Valor (R$)" aria-label="Valor da parcela">
-        <label class="checkbox-field"><input type="checkbox" data-field="pago" ${p.pago ? 'checked' : ''}><span>Pago</span></label>
-        <button type="button" class="icon-remove" data-remove aria-label="Remover parcela"><svg class="icon-sm"><use href="#i-trash"/></svg></button>
+        <div class="parcela-main">
+          <span class="parcela-num">${i + 1}ª</span>
+          <input type="date" data-field="data" value="${p.data || ''}" aria-label="Vencimento da parcela ${i + 1}">
+          <input type="text" inputmode="decimal" autocomplete="off" data-field="valor" value="${numberToMoneyString(p.valor)}" placeholder="Valor (R$)" aria-label="Valor da parcela ${i + 1}">
+          <button type="button" class="icon-remove" data-remove aria-label="Remover parcela ${i + 1}"><svg class="icon-sm"><use href="#i-trash"/></svg></button>
+        </div>
+        <div class="parcela-pays">
+          ${payRow(p, i, 'pago', 'Cliente pagou')}
+          ${payRow(p, i, 'devPago', 'Dev pago')}
+          ${payRow(p, i, 'agenciaPaga', 'Agência paga')}
+        </div>
       </div>`).join('');
 
     parcelasList.querySelectorAll('.parcela-row').forEach(row => {
@@ -115,6 +146,13 @@ STORE.onReady(() => {
         input.addEventListener(eventName, () => {
           if (input.type === 'checkbox') {
             parcelas[idx][field] = input.checked;
+            /* Marcou como pago e ainda não tinha data? Preenche com hoje (dá pra trocar). */
+            const dateInput = row.querySelector(`[data-field="${field}Em"]`);
+            if (dateInput) {
+              if (input.checked && !dateInput.value) dateInput.value = hoje();
+              if (!input.checked) dateInput.value = '';
+              parcelas[idx][field + 'Em'] = dateInput.value;
+            }
           } else if (field === 'valor') {
             input.value = formatMoneyTyping(input.value);
             parcelas[idx][field] = moneyStringToNumber(input.value);
@@ -137,39 +175,126 @@ STORE.onReady(() => {
     const show = tipoPagamento.value === 'parcelado';
     parcelasTitle.hidden = !show;
     parcelasList.hidden = !show;
-    /* Parcelado controla "recebido" pelo check de cada parcela; à vista usa o
-       checkbox único "Cliente já pagou". */
-    clientePagoField.hidden = show;
+    /* No parcelado, TODAS as marcações de pagamento (cliente, dev e agência) ficam em cada
+       parcela, com a data de cada repasse — a seção "Situação de pagamento" só vale para o
+       projeto à vista, que não tem parcela com data própria. */
+    payRows.hidden = show;
+    situacaoHint.hidden = !show;
+    situacaoTitle.hidden = false;
   }
   tipoPagamento.addEventListener('change', () => { toggleParcelasVisibility(); updateFinance(); });
 
   addParcelaBtn.addEventListener('click', () => {
-    parcelas.push({ data: '', valor: '', pago: false });
+    parcelas.push({ data: '', valor: '', pago: false, pagoEm: '', devPago: false, devPagoEm: '', agenciaPaga: false, agenciaPagaEm: '' });
     renderParcelas();
     updateFinance();
     updateSubmitLabel();
   });
 
-  function updateSplitTotal() {
-    const a = parseFloat(form.splitAgencia.value) || 0;
-    const e = parseFloat(form.splitEu.value) || 0;
-    const d = parseFloat(form.splitDev.value) || 0;
-    const soma = a + e + d;
+  /* ===== Divisão: por porcentagem (padrão) ou por valor em R$ =====
+     No modo "valor" você digita quanto cada um recebe — serve pra quando o dev passa o
+     preço dele e você joga a sua margem em cima, sem virar uma % redonda. A soma precisa
+     bater com o valor do projeto; se não bater, aparece um atalho pra usar a soma como
+     valor do projeto. */
+  let splitModo = 'percentual';
+  const isPorValor = () => splitModo === 'valor';
+
+  /* Monta o "cliente de mentira" usado pelos cálculos, do jeito que o STORE espera. */
+  function splitFromForm() {
+    return {
+      valor: moneyStringToNumber(form.valor.value),
+      splitModo,
+      splitAgencia: parseFloat(form.splitAgencia.value) || 0,
+      splitEu: parseFloat(form.splitEu.value) || 0,
+      splitDev: parseFloat(form.splitDev.value) || 0,
+      splitAgenciaValor: moneyStringToNumber(form.splitAgenciaValor.value),
+      splitEuValor: moneyStringToNumber(form.splitEuValor.value),
+      splitDevValor: moneyStringToNumber(form.splitDevValor.value)
+    };
+  }
+
+  function applySplitModo(modo) {
+    splitModo = modo === 'valor' ? 'valor' : 'percentual';
+    splitModeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.modo === splitModo));
+    [['Agencia', 'Agência'], ['Eu', 'Eu'], ['Dev', 'Dev']].forEach(([key, label]) => {
+      form['split' + key].hidden = isPorValor();
+      form['split' + key + 'Valor'].hidden = !isPorValor();
+      document.getElementById('label' + key).textContent = `${label} (${isPorValor() ? 'R$' : '%'})`;
+    });
+    splitModeHint.textContent = isPorValor()
+      ? 'A soma dos três precisa dar o valor do projeto.'
+      : 'A soma das porcentagens precisa dar 100%.';
+    updateSplitTotal();
+    updateFinance();
+  }
+  splitModeBtns.forEach(btn => btn.addEventListener('click', () => {
+    if (btn.dataset.modo === splitModo) return;
     const valor = moneyStringToNumber(form.valor.value);
-    const parts = STORE.splitValues({ valor, splitAgencia: a, splitEu: e, splitDev: d });
+    /* Ao trocar de modo, converte o que já estava preenchido, pra não perder a divisão. */
+    if (btn.dataset.modo === 'valor') {
+      const parts = STORE.splitValues(splitFromForm());
+      form.splitAgenciaValor.value = numberToMoneyString(parts.agencia);
+      form.splitEuValor.value = numberToMoneyString(parts.eu);
+      form.splitDevValor.value = numberToMoneyString(parts.dev);
+    } else if (valor > 0) {
+      const parts = STORE.splitValues(splitFromForm());
+      const pct = (v) => Math.round((v / valor) * 10000) / 100;
+      form.splitAgencia.value = pct(parts.agencia);
+      form.splitEu.value = pct(parts.eu);
+      form.splitDev.value = pct(parts.dev);
+    }
+    applySplitModo(btn.dataset.modo);
+    updateSubmitLabel();
+  }));
+
+  /* Só no modo valor: usa a soma digitada como valor do projeto (o caso do dev que passa
+     o preço dele e você soma a sua parte em cima). */
+  useSplitSumBtn.addEventListener('click', () => {
+    const parts = STORE.splitValues(splitFromForm());
+    form.valor.value = numberToMoneyString(parts.agencia + parts.eu + parts.dev);
+    updateSplitTotal();
+    updateFinance();
+    updateSubmitLabel();
+  });
+
+  function updateSplitTotal() {
+    const draft = splitFromForm();
+    const valor = draft.valor;
+    const parts = STORE.splitValues(draft);
+    const pct = STORE.splitPercents(draft);
+    const fmtPct = (n) => `${(Math.round(n * 10000) / 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
 
     document.getElementById('splitAgenciaValue').textContent = STORE.formatBRL(parts.agencia);
     document.getElementById('splitEuValue').textContent = STORE.formatBRL(parts.eu);
     document.getElementById('splitDevValue').textContent = STORE.formatBRL(parts.dev);
-    document.getElementById('splitAgenciaPct').textContent = `${a}%`;
-    document.getElementById('splitEuPct').textContent = `${e}%`;
-    document.getElementById('splitDevPct').textContent = `${d}%`;
+    document.getElementById('splitAgenciaPct').textContent = fmtPct(pct.agencia);
+    document.getElementById('splitEuPct').textContent = fmtPct(pct.eu);
+    document.getElementById('splitDevPct').textContent = fmtPct(pct.dev);
 
-    splitTotalEl.textContent = `Soma das porcentagens: ${soma}%`;
-    splitTotalEl.className = 'split-total ' + (soma === 100 ? 'is-ok' : 'is-bad');
+    let ok, texto;
+    if (isPorValor()) {
+      const soma = parts.agencia + parts.eu + parts.dev;
+      /* Centavos: compara com tolerância pra não acusar erro por arredondamento. */
+      ok = Math.abs(soma - valor) < 0.01 && soma > 0;
+      texto = `Soma: ${STORE.formatBRL(soma)} de ${STORE.formatBRL(valor)}`;
+      useSplitSumBtn.hidden = ok || soma <= 0;
+      useSplitSumBtn.textContent = `Usar ${STORE.formatBRL(soma)} como valor do projeto`;
+    } else {
+      const soma = draft.splitAgencia + draft.splitEu + draft.splitDev;
+      ok = Math.abs(soma - 100) < 0.001;
+      texto = `Soma das porcentagens: ${soma.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
+      useSplitSumBtn.hidden = true;
+    }
+    splitTotalEl.firstChild.textContent = texto + ' ';
+    splitTotalEl.className = 'split-total ' + (ok ? 'is-ok' : 'is-bad');
   }
   ['splitAgencia', 'splitEu', 'splitDev'].forEach(name => {
     form[name].addEventListener('input', () => { updateSplitTotal(); updateFinance(); });
+    form[name + 'Valor'].addEventListener('input', (e) => {
+      e.target.value = formatMoneyTyping(e.target.value);
+      updateSplitTotal();
+      updateFinance();
+    });
   });
   form.valor.addEventListener('input', () => {
     form.valor.value = formatMoneyTyping(form.valor.value);
@@ -180,10 +305,7 @@ STORE.onReady(() => {
   /* Dinheiro que já entrou/saiu de verdade — separado da divisão combinada acima. */
   function updateFinance() {
     const tempClient = {
-      valor: moneyStringToNumber(form.valor.value),
-      splitAgencia: parseFloat(form.splitAgencia.value) || 0,
-      splitEu: parseFloat(form.splitEu.value) || 0,
-      splitDev: parseFloat(form.splitDev.value) || 0,
+      ...splitFromForm(),
       tipoPagamento: tipoPagamento.value,
       clientePago: form.clientePago.checked,
       devPago: form.devPago.checked,
@@ -216,8 +338,14 @@ STORE.onReady(() => {
     saldoEl.textContent = STORE.formatBRL(f.meuSaldo);
     saldoEl.className = 'finance-row-value' + (f.meuSaldo < 0 ? ' is-negative' : '');
   }
+  /* À vista: marcar como pago preenche a data com hoje (dá pra trocar); desmarcar limpa. */
   ['clientePago', 'devPago', 'agenciaPaga'].forEach(name => {
-    form[name].addEventListener('change', updateFinance);
+    form[name].addEventListener('change', () => {
+      const dateInput = form[name + 'Em'];
+      if (form[name].checked && !dateInput.value) dateInput.value = hoje();
+      if (!form[name].checked) dateInput.value = '';
+      updateFinance();
+    });
   });
 
   /* Quando o dev responsável é você mesmo (Ruan), não faz sentido ter uma cota de "dev"
@@ -244,7 +372,18 @@ STORE.onReady(() => {
         form.splitEu.value = (parseFloat(form.splitEu.value) || 0) + dev;
         form.splitDev.value = 0;
       }
+      /* O mesmo no modo valor: a parte que estava com o dev passa a ser sua. */
+      const devValor = moneyStringToNumber(form.splitDevValor.value);
+      if (devValor > 0) {
+        form.splitEuValor.value = numberToMoneyString(moneyStringToNumber(form.splitEuValor.value) + devValor);
+        form.splitDevValor.value = '';
+      }
+      /* As parcelas também perdem a marcação de repasse ao dev. */
+      parcelas.forEach((p) => { p.devPago = false; p.devPagoEm = ''; });
+      form.devPago.checked = false;
+      form.devPagoEm.value = '';
     }
+    renderParcelas();
     updateSplitTotal();
     updateFinance();
   }
@@ -271,8 +410,11 @@ STORE.onReady(() => {
       ensureOptionExists(form.devResponsavel, existing.devResponsavel);
       form.devResponsavel.value = existing.devResponsavel || '';
       form.devPago.checked = !!existing.devPago;
+      form.devPagoEm.value = existing.devPagoEm || '';
       form.clientePago.checked = !!existing.clientePago;
+      form.clientePagoEm.value = existing.clientePagoEm || '';
       form.agenciaPaga.checked = !!existing.agenciaPaga;
+      form.agenciaPagaEm.value = existing.agenciaPagaEm || '';
       form.tipoPagamento.value = existing.tipoPagamento || 'avista';
       form.dataInicio.value = existing.dataInicio || '';
       form.prazoFinal.value = existing.prazoFinal || '';
@@ -280,10 +422,17 @@ STORE.onReady(() => {
       form.splitAgencia.value = existing.splitAgencia ?? 20;
       form.splitEu.value = existing.splitEu ?? 40;
       form.splitDev.value = existing.splitDev ?? 40;
-      parcelas = (existing.parcelas || []).map(p => ({ ...p }));
+      form.splitAgenciaValor.value = numberToMoneyString(existing.splitAgenciaValor);
+      form.splitEuValor.value = numberToMoneyString(existing.splitEuValor);
+      form.splitDevValor.value = numberToMoneyString(existing.splitDevValor);
+      splitModo = existing.splitModo === 'valor' ? 'valor' : 'percentual';
+      /* Traz as marcações de repasse pra dentro de cada parcela (clientes salvos na versão
+         antiga tinham só a marcação do projeto inteiro — veja STORE.parcelasComRepasse). */
+      parcelas = STORE.parcelasComRepasse(existing).map(p => ({ ...p }));
       deleteBtn.hidden = false;
     }
   }
+  applySplitModo(splitModo);
   renderParcelas();
   toggleParcelasVisibility();
   applyDevMode();
@@ -296,9 +445,11 @@ STORE.onReady(() => {
       empresa: form.empresa.value, nomeCliente: form.nomeCliente.value, valor: form.valor.value, tipoProjeto: form.tipoProjeto.value,
       origem: form.origem.value, devResponsavel: form.devResponsavel.value,
       devPago: form.devPago.checked, clientePago: form.clientePago.checked, agenciaPaga: form.agenciaPaga.checked,
+      devPagoEm: form.devPagoEm.value, clientePagoEm: form.clientePagoEm.value, agenciaPagaEm: form.agenciaPagaEm.value,
       tipoPagamento: form.tipoPagamento.value, dataInicio: form.dataInicio.value, prazoFinal: form.prazoFinal.value,
-      status: form.status.value, splitAgencia: form.splitAgencia.value, splitEu: form.splitEu.value,
-      splitDev: form.splitDev.value, parcelas
+      status: form.status.value, splitModo, splitAgencia: form.splitAgencia.value, splitEu: form.splitEu.value,
+      splitDev: form.splitDev.value, splitAgenciaValor: form.splitAgenciaValor.value,
+      splitEuValor: form.splitEuValor.value, splitDevValor: form.splitDevValor.value, parcelas
     });
   }
   const initialSnapshot = isEdit ? snapshotForm() : null;
@@ -312,17 +463,32 @@ STORE.onReady(() => {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const a = parseFloat(form.splitAgencia.value) || 0;
-    const eu = parseFloat(form.splitEu.value) || 0;
-    const d = parseFloat(form.splitDev.value) || 0;
-    if (a + eu + d !== 100) {
-      msgEl.textContent = isSelfDev()
-        ? 'A soma das porcentagens (agência + eu) precisa dar exatamente 100%.'
-        : 'A soma das porcentagens (agência + eu + dev) precisa dar exatamente 100%.';
+    const draft = splitFromForm();
+    const quem = isSelfDev() ? 'agência + eu' : 'agência + eu + dev';
+    const parts = STORE.splitValues(draft);
+    const somaValores = parts.agencia + parts.eu + parts.dev;
+
+    if (isPorValor() && Math.abs(somaValores - draft.valor) >= 0.01) {
+      msgEl.textContent = `A soma dos valores (${quem}) precisa dar exatamente o valor do projeto — hoje dá ${STORE.formatBRL(somaValores)} de ${STORE.formatBRL(draft.valor)}.`;
       msgEl.style.color = '#ef5b5b';
       splitTotalEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+    if (!isPorValor() && Math.abs(draft.splitAgencia + draft.splitEu + draft.splitDev - 100) >= 0.001) {
+      msgEl.textContent = `A soma das porcentagens (${quem}) precisa dar exatamente 100%.`;
+      msgEl.style.color = '#ef5b5b';
+      splitTotalEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    /* Guarda os dois formatos: o que foi digitado e o equivalente no outro modo. Assim o
+       resto do sistema (Financeiro, Relatório) continua repartindo cada parcela pela
+       porcentagem, mesmo quando a divisão foi definida em reais. */
+    const pct = STORE.splitPercents(draft);
+    const arredonda = (n) => Math.round(n * 100) / 100;
+    const a = isPorValor() ? arredonda(pct.agencia * 100) : draft.splitAgencia;
+    const eu = isPorValor() ? arredonda(pct.eu * 100) : draft.splitEu;
+    const d = isPorValor() ? arredonda(pct.dev * 100) : draft.splitDev;
 
     const client = {
       ...currentClient,
@@ -333,15 +499,22 @@ STORE.onReady(() => {
       origem: form.origem.value,
       devResponsavel: form.devResponsavel.value.trim(),
       devPago: form.devPago.checked,
+      devPagoEm: form.devPago.checked ? form.devPagoEm.value : '',
       clientePago: form.clientePago.checked,
+      clientePagoEm: form.clientePago.checked ? form.clientePagoEm.value : '',
       agenciaPaga: form.agenciaPaga.checked,
+      agenciaPagaEm: form.agenciaPaga.checked ? form.agenciaPagaEm.value : '',
       tipoPagamento: form.tipoPagamento.value,
       dataInicio: form.dataInicio.value,
       prazoFinal: form.prazoFinal.value,
       status: form.status.value,
+      splitModo,
       splitAgencia: a,
       splitEu: eu,
       splitDev: d,
+      splitAgenciaValor: parts.agencia,
+      splitEuValor: parts.eu,
+      splitDevValor: parts.dev,
       parcelas: form.tipoPagamento.value === 'parcelado' ? parcelas.filter(p => p.data || p.valor) : []
     };
 
