@@ -182,14 +182,13 @@ const STORE = (function () {
       tipoProjeto: '',
       origem: '',
       devResponsavel: '',
-      /* Marcações do projeto à vista (no parcelado cada parcela tem as suas) — cada uma
-         com a data em que o pagamento foi feito, pra não se perder nos repasses. */
-      devPago: false,
-      devPagoEm: '',
+      /* Pagamento do cliente no projeto à vista (no parcelado, cada parcela tem o seu). */
       clientePago: false,
       clientePagoEm: '',
-      agenciaPaga: false,
-      agenciaPagaEm: '',
+      /* Repasses feitos ao dev e à agência: [{ data, valor }] — podem ser parciais e em
+         qualquer data (adiantado, no fim do mês, depois do projeto). */
+      repassesDev: [],
+      repassesAgencia: [],
       tipoPagamento: 'avista',
       dataInicio: '',
       prazoFinal: '',
@@ -327,72 +326,75 @@ const STORE = (function () {
   }
 
   /* ===== Repasses (pagamento ao dev e à agência) =====
-     Num projeto parcelado cada parcela tem os próprios "dev pago"/"agência paga" com data,
-     porque um projeto que começa num mês e termina no outro tem repasses em datas
-     diferentes. No à vista continua valendo a marcação única do projeto, também com data.
+     Cada repasse é um lançamento com VALOR e DATA — não uma marcação de "pago/não pago".
+     É assim porque o pagamento ao dev costuma sair adiantado (no início do projeto) ou
+     depois do fim, e o da agência no fechamento do mês: nenhum dos dois acompanha as
+     parcelas do cliente, e os dois podem ser parciais (paguei metade agora, metade depois).
 
-     Compatibilidade: cliente salvo na versão antiga tinha só a marcação do projeto inteiro.
-     Se for parcelado e nenhuma parcela tiver marcação própria, a marcação antiga vale para
-     todas as parcelas (nada de repasse "some" ao abrir o cadastro). */
-  function parcelasComRepasse(client) {
+     client.repassesDev / client.repassesAgencia = [{ data, valor }]
+
+     Compatibilidade com as versões anteriores (que tinham só um "pago" sim/não, por parcela
+     ou no projeto inteiro): a marcação antiga vira um lançamento com a cota proporcional e
+     a data que estava salva. Nada se perde, e nada é reescrito até você salvar o cadastro. */
+  const DESTINOS = { dev: 'repassesDev', agencia: 'repassesAgencia' };
+
+  function repasseEntries(client, quem) {
+    const campo = DESTINOS[quem];
+    const salvos = client[campo];
+    if (Array.isArray(salvos)) {
+      return salvos
+        .map(r => ({ data: r.data || '', valor: parseFloat(r.valor) || 0 }))
+        .filter(r => r.valor > 0 || r.data);
+    }
+
+    /* Converte o formato antigo (checkbox) em lançamentos. */
+    const pct = splitPercents(client);
+    const split = splitValues(client);
+    const flag = quem === 'dev' ? 'devPago' : 'agenciaPaga';
     const parcelas = client.parcelas || [];
-    const legacyDev = !!client.devPago && !parcelas.some(p => p.devPago !== undefined);
-    const legacyAgencia = !!client.agenciaPaga && !parcelas.some(p => p.agenciaPaga !== undefined);
-    return parcelas.map(p => ({
-      ...p,
-      devPago: legacyDev ? true : !!p.devPago,
-      agenciaPaga: legacyAgencia ? true : !!p.agenciaPaga
-    }));
+
+    if (client.tipoPagamento === 'parcelado' && parcelas.some(par => par[flag] !== undefined)) {
+      return parcelas
+        .filter(par => par[flag])
+        .map(par => ({
+          data: par[flag + 'Em'] || par.data || '',
+          valor: (parseFloat(par.valor) || 0) * pct[quem === 'dev' ? 'dev' : 'agencia']
+        }))
+        .filter(r => r.valor > 0);
+    }
+    if (client[flag]) {
+      const total = quem === 'dev' ? split.dev : split.agencia;
+      if (total > 0) return [{ data: client[flag + 'Em'] || client.dataInicio || '', valor: total }];
+    }
+    return [];
   }
 
-  /* Soma quanto já foi repassado ao dev e à agência, olhando parcela por parcela (ou a
-     marcação única, no à vista). `filtroMes` limita a um mês (usado pelo Financeiro). */
+  /* Soma dos repasses já feitos. `filtroMes` ("2026-09") limita aos lançamentos feitos
+     naquele mês — é o dinheiro que saiu do caixa no mês, independente de qual parcela
+     do cliente ele se refere. Lançamento sem data entra em qualquer mês filtrado? Não:
+     fica fora do recorte mensal (mas continua contando no total do projeto). */
   function repasses(client, filtroMes) {
-    const pct = splitPercents(client);
-    const split = splitValues(client);
-    let dev = 0, agencia = 0;
-
-    if (client.tipoPagamento === 'parcelado') {
-      parcelasComRepasse(client).forEach((p) => {
-        if (filtroMes && (p.data || '').slice(0, 7) !== filtroMes) return;
-        const v = parseFloat(p.valor) || 0;
-        if (p.devPago) dev += v * pct.dev;
-        if (p.agenciaPaga) agencia += v * pct.agencia;
-      });
-      return { dev, agencia };
-    }
-
-    const noMes = !filtroMes || (client.dataInicio || client.createdAt || '').slice(0, 7) === filtroMes;
-    if (!noMes) return { dev: 0, agencia: 0 };
-    return {
-      dev: client.devPago ? split.dev : 0,
-      agencia: client.agenciaPaga ? split.agencia : 0
-    };
+    const soma = (quem) => repasseEntries(client, quem)
+      .filter(r => !filtroMes || (r.data || '').slice(0, 7) === filtroMes)
+      .reduce((acc, r) => acc + r.valor, 0);
+    return { dev: soma('dev'), agencia: soma('agencia') };
   }
 
-  /* Repasses que já deveriam ter sido feitos: o cliente pagou aquela parcela (o dinheiro
-     entrou), mas o dev e/ou a agência ainda não receberam a parte deles. É o que alimenta
-     o aviso de "falta repassar" — sem cobrar repasse de dinheiro que ainda não entrou. */
-  function repassesPendentes(client) {
-    const pct = splitPercents(client);
+  /* Resumo pra tela: quanto o dev/agência têm a receber no total, quanto já receberam e
+     quanto falta — a "barra de progresso" do repasse. */
+  function repasseResumo(client, quem) {
     const split = splitValues(client);
-    const pendentes = [];
-
-    if (client.tipoPagamento === 'parcelado') {
-      parcelasComRepasse(client).forEach((p, parcelaIndex) => {
-        if (!p.pago) return;
-        const v = parseFloat(p.valor) || 0;
-        if (!p.devPago && pct.dev > 0) pendentes.push({ tipo: 'dev', parcelaIndex, data: p.data, valor: v * pct.dev });
-        if (!p.agenciaPaga && pct.agencia > 0) pendentes.push({ tipo: 'agencia', parcelaIndex, data: p.data, valor: v * pct.agencia });
-      });
-      return pendentes;
-    }
-
-    if (!client.clientePago) return pendentes;
-    const data = client.clientePagoEm || client.dataInicio || '';
-    if (!client.devPago && split.dev > 0) pendentes.push({ tipo: 'dev', parcelaIndex: -1, data, valor: split.dev });
-    if (!client.agenciaPaga && split.agencia > 0) pendentes.push({ tipo: 'agencia', parcelaIndex: -1, data, valor: split.agencia });
-    return pendentes;
+    const total = quem === 'dev' ? split.dev : split.agencia;
+    const pago = repasses(client)[quem === 'dev' ? 'dev' : 'agencia'];
+    const falta = total - pago;
+    return {
+      total,
+      pago,
+      /* Menos de um centavo de diferença é arredondamento, não dívida. */
+      falta: Math.abs(falta) < 0.01 ? 0 : falta,
+      pctPago: total > 0 ? Math.min(1, pago / total) : 0,
+      entries: repasseEntries(client, quem)
+    };
   }
 
   /* Quanto do valor combinado já entrou de verdade (dinheiro na mão, não "fechado no papel").
@@ -465,10 +467,13 @@ const STORE = (function () {
     const euPct = pct.eu;
     const devValor = recebido * pct.dev;
     const agenciaValor = recebido * pct.agencia;
-    /* Repasses daquele mês, contados parcela a parcela (cada uma tem a própria marcação). */
+    /* Repasse conta no mês em que o pagamento foi FEITO (a data do lançamento) — é quando
+       o dinheiro saiu do caixa. Como o dev pode ser pago adiantado, o repasse de um mês
+       pode ser maior que a cota do que entrou naquele mesmo mês; por isso o "pendente do
+       mês" nunca fica negativo (o que falta de verdade aparece no total do projeto). */
     const pago = repasses(client, period);
-    const devRepassado = Math.min(pago.dev, devValor);
-    const agenciaRepassada = Math.min(pago.agencia, agenciaValor);
+    const devRepassado = pago.dev;
+    const agenciaRepassada = pago.agencia;
 
     return {
       valorTotal,
@@ -476,10 +481,10 @@ const STORE = (function () {
       pendenteReceber,
       devValor,
       devRepassado,
-      devPendente: devValor - devRepassado,
+      devPendente: Math.max(0, devValor - devRepassado),
       agenciaValor,
       agenciaRepassada,
-      agenciaPendente: agenciaValor - agenciaRepassada,
+      agenciaPendente: Math.max(0, agenciaValor - agenciaRepassada),
       euValor: recebido * euPct,
       meuSaldo: recebido * euPct
     };
@@ -615,7 +620,7 @@ const STORE = (function () {
   return {
     onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
-    splitValues, splitPercents, isSplitPorValor, parcelasComRepasse, repasses, repassesPendentes,
+    splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo,
     valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,

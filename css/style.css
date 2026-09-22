@@ -409,6 +409,36 @@ html.sidebar-collapsed .main{margin-left:76px;}
 }
 .pay-date input:disabled{opacity:.45;}
 
+/* ===== Repasses ao dev e à agência =====
+   Cada bloco mostra quanto já foi pago do total devido, com barra de progresso, a lista
+   de pagamentos lançados (valor + data) e quanto ainda falta. */
+.repasse-blocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:26px;}
+.repasse-block{
+  background:var(--gray-50);border-radius:var(--radius-md);padding:18px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.repasse-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.repasse-title{font-size:.9rem;font-weight:700;color:var(--ink);}
+.repasse-title span{font-weight:600;color:var(--gray-500);}
+.repasse-nums{display:flex;align-items:baseline;gap:6px;}
+.repasse-nums strong{font-family:'Outfit',sans-serif;font-size:1.05rem;}
+.repasse-nums span{font-size:.78rem;color:var(--gray-500);font-weight:600;}
+.repasse-bar{height:8px;border-radius:999px;background:var(--gray-100);overflow:hidden;}
+.repasse-bar span{display:block;height:100%;width:0;background:var(--lime-dark);border-radius:999px;transition:width .25s ease;}
+.repasse-status{font-size:.78rem;font-weight:600;color:var(--gray-500);}
+.repasse-status.is-pending{color:var(--red);}
+.repasse-status.is-ok{color:#1e8a4c;}
+.repasse-status.is-over{color:var(--orange);}
+.repasse-list{display:flex;flex-direction:column;gap:8px;}
+.repasse-item{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;}
+/* min-width:0 pra coluna 1fr poder encolher — sem isso a largura natural do campo de
+   data empurra a lixeira pra fora do bloco. */
+.repasse-item input{
+  padding:8px 10px;border-radius:9px;border:1.5px solid var(--gray-100);
+  background:var(--white);font-size:.82rem;min-width:0;
+}
+.repasse-block .btn{align-self:flex-start;}
+
 /* Alternador "Porcentagem / Valor (R$)" da divisão. */
 .split-mode{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
 .split-mode-label{font-size:.8rem;font-weight:700;color:var(--gray-700);}

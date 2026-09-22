@@ -169,8 +169,7 @@ STORE.onReady(() => {
       ${t.totalPendenteReceber > 0 ? `<div class="modal-total-row"><span>Ainda falta receber</span><span>${STORE.formatBRL(t.totalPendenteReceber)}</span></div>` : ''}`;
   }
 
-  /* Com o repasse marcado parcela a parcela, um projeto pode estar só PARCIALMENTE
-     repassado — não é mais tudo-ou-nada. */
+  /* Os repasses são lançados com valor e data, então podem ser parciais. */
   function statusRepasse(repassado, pendente) {
     if (pendente <= 0.009) return repassado > 0 ? 'Pago' : '—';
     return repassado > 0.009 ? 'Parcial' : 'A pagar';

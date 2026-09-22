@@ -17,13 +17,14 @@ STORE.onReady(() => {
   const addParcelaBtn = document.getElementById('addParcela');
   const splitTotalEl = document.getElementById('splitTotal');
   const clientePagoField = document.getElementById('clientePagoField');
-  const devPagoField = document.getElementById('devPagoField');
   const payRows = document.getElementById('payRows');
   const situacaoTitle = document.getElementById('situacaoTitle');
   const situacaoHint = document.getElementById('situacaoHint');
   const splitModeBtns = document.querySelectorAll('#splitMode .scope-btn');
   const splitModeHint = document.getElementById('splitModeHint');
   const useSplitSumBtn = document.getElementById('useSplitSumBtn');
+  const repasseDevBlock = document.getElementById('repasseDevBlock');
+  const repasseDevNome = document.getElementById('repasseDevNome');
   const splitSectionTitle = document.getElementById('splitSectionTitle');
   const splitRow = document.getElementById('splitRow');
   const splitDevField = document.getElementById('splitDevField');
@@ -107,22 +108,9 @@ STORE.onReady(() => {
       parcelasList.innerHTML = '<p class="field-hint">Nenhuma parcela cadastrada ainda.</p>';
       return;
     }
-    /* Cada parcela tem as três marcações de pagamento com a data de cada uma: quando o
-       cliente pagou aquela parcela, quando o dev recebeu a parte dele e quando a agência
-       recebeu a dela. É o que permite acompanhar projeto que começa num mês e termina no
-       outro, com repasses em datas diferentes. */
-    const payRow = (p, i, field, label) => `
-      <div class="pay-row"${field === 'devPago' && isSelfDev() ? ' hidden' : ''}>
-        <label class="checkbox-field">
-          <input type="checkbox" data-field="${field}" ${p[field] ? 'checked' : ''}>
-          <span>${label}</span>
-        </label>
-        <label class="pay-date">
-          <span>em</span>
-          <input type="date" data-field="${field}Em" value="${p[field + 'Em'] || ''}" aria-label="Data — ${label}, parcela ${i + 1}">
-        </label>
-      </div>`;
-
+    /* A parcela registra só o pagamento DO CLIENTE, com a data. Os repasses ao dev e à
+       agência ficam na seção "Repasses", porque saem em datas próprias (adiantado, no
+       fechamento do mês, depois do fim do projeto) e podem ser parciais. */
     parcelasList.innerHTML = parcelas.map((p, i) => `
       <div class="parcela-row" data-index="${i}">
         <div class="parcela-main">
@@ -132,9 +120,16 @@ STORE.onReady(() => {
           <button type="button" class="icon-remove" data-remove aria-label="Remover parcela ${i + 1}"><svg class="icon-sm"><use href="#i-trash"/></svg></button>
         </div>
         <div class="parcela-pays">
-          ${payRow(p, i, 'pago', 'Cliente pagou')}
-          ${payRow(p, i, 'devPago', 'Dev pago')}
-          ${payRow(p, i, 'agenciaPaga', 'Agência paga')}
+          <div class="pay-row">
+            <label class="checkbox-field">
+              <input type="checkbox" data-field="pago" ${p.pago ? 'checked' : ''}>
+              <span>Cliente pagou</span>
+            </label>
+            <label class="pay-date">
+              <span>em</span>
+              <input type="date" data-field="pagoEm" value="${p.pagoEm || ''}" aria-label="Data do pagamento da parcela ${i + 1}">
+            </label>
+          </div>
         </div>
       </div>`).join('');
 
@@ -185,10 +180,94 @@ STORE.onReady(() => {
   tipoPagamento.addEventListener('change', () => { toggleParcelasVisibility(); updateFinance(); });
 
   addParcelaBtn.addEventListener('click', () => {
-    parcelas.push({ data: '', valor: '', pago: false, pagoEm: '', devPago: false, devPagoEm: '', agenciaPaga: false, agenciaPagaEm: '' });
+    parcelas.push({ data: '', valor: '', pago: false, pagoEm: '' });
     renderParcelas();
     updateFinance();
     updateSubmitLabel();
+  });
+
+  /* ===== Repasses ao dev e à agência =====
+     Lançamentos com valor e data (podem ser parciais e em qualquer data), com uma barra
+     mostrando quanto do total já foi pago e quanto ainda falta. */
+  const repassesPorQuem = { dev: [], agencia: [] };
+  const NOMES = { dev: 'dev', agencia: 'agência' };
+
+  function renderRepasses(quem) {
+    const cap = quem === 'dev' ? 'Dev' : 'Agencia';
+    const lista = document.getElementById(`repasse${cap}List`);
+    const itens = repassesPorQuem[quem];
+
+    lista.innerHTML = !itens.length
+      ? '<p class="field-hint">Nenhum pagamento registrado ainda.</p>'
+      : itens.map((r, i) => `
+        <div class="repasse-item" data-index="${i}">
+          <input type="date" data-field="data" value="${r.data || ''}" aria-label="Data do pagamento à ${NOMES[quem]}">
+          <input type="text" inputmode="decimal" autocomplete="off" data-field="valor" value="${numberToMoneyString(r.valor)}" placeholder="Valor (R$)" aria-label="Valor pago à ${NOMES[quem]}">
+          <button type="button" class="icon-remove" data-remove aria-label="Remover pagamento"><svg class="icon-sm"><use href="#i-trash"/></svg></button>
+        </div>`).join('');
+
+    lista.querySelectorAll('.repasse-item').forEach((row) => {
+      const idx = parseInt(row.dataset.index, 10);
+      row.querySelectorAll('[data-field]').forEach((input) => {
+        input.addEventListener('input', () => {
+          if (input.dataset.field === 'valor') {
+            input.value = formatMoneyTyping(input.value);
+            itens[idx].valor = moneyStringToNumber(input.value);
+          } else {
+            itens[idx].data = input.value;
+          }
+          updateRepasseResumo(quem);
+          updateFinance();
+        });
+      });
+      row.querySelector('[data-remove]').addEventListener('click', () => {
+        itens.splice(idx, 1);
+        renderRepasses(quem);
+        updateRepasseResumo(quem);
+        updateFinance();
+        updateSubmitLabel();
+      });
+    });
+    updateRepasseResumo(quem);
+  }
+
+  function updateRepasseResumo(quem) {
+    const cap = quem === 'dev' ? 'Dev' : 'Agencia';
+    const draft = { ...splitFromForm(), repassesDev: repassesPorQuem.dev, repassesAgencia: repassesPorQuem.agencia };
+    const r = STORE.repasseResumo(draft, quem);
+
+    document.getElementById(`repasse${cap}Pago`).textContent = STORE.formatBRL(r.pago);
+    document.getElementById(`repasse${cap}Total`).textContent = `de ${STORE.formatBRL(r.total)}`;
+    document.getElementById(`repasse${cap}Fill`).style.width = `${r.pctPago * 100}%`;
+
+    const status = document.getElementById(`repasse${cap}Status`);
+    if (r.total <= 0) {
+      status.textContent = 'Defina o valor do projeto e a divisão para ver quanto pagar.';
+      status.className = 'repasse-status';
+    } else if (r.falta > 0) {
+      status.textContent = `Falta pagar ${STORE.formatBRL(r.falta)}`;
+      status.className = 'repasse-status is-pending';
+    } else if (r.falta < 0) {
+      status.textContent = `Pago ${STORE.formatBRL(-r.falta)} a mais que o combinado`;
+      status.className = 'repasse-status is-over';
+    } else {
+      status.textContent = 'Tudo pago ✓';
+      status.className = 'repasse-status is-ok';
+    }
+  }
+
+  document.querySelectorAll('[data-add-repasse]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const quem = btn.dataset.addRepasse;
+      /* Já vem com a data de hoje e o valor que ainda falta — na maioria das vezes é
+         exatamente isso, e dá pra editar. */
+      const draft = { ...splitFromForm(), repassesDev: repassesPorQuem.dev, repassesAgencia: repassesPorQuem.agencia };
+      const falta = STORE.repasseResumo(draft, quem).falta;
+      repassesPorQuem[quem].push({ data: hoje(), valor: falta > 0 ? falta : 0 });
+      renderRepasses(quem);
+      updateFinance();
+      updateSubmitLabel();
+    });
   });
 
   /* ===== Divisão: por porcentagem (padrão) ou por valor em R$ =====
@@ -258,6 +337,8 @@ STORE.onReady(() => {
   });
 
   function updateSplitTotal() {
+    updateRepasseResumo('dev');
+    updateRepasseResumo('agencia');
     const draft = splitFromForm();
     const valor = draft.valor;
     const parts = STORE.splitValues(draft);
@@ -308,8 +389,8 @@ STORE.onReady(() => {
       ...splitFromForm(),
       tipoPagamento: tipoPagamento.value,
       clientePago: form.clientePago.checked,
-      devPago: form.devPago.checked,
-      agenciaPaga: form.agenciaPaga.checked,
+      repassesDev: repassesPorQuem.dev,
+      repassesAgencia: repassesPorQuem.agencia,
       parcelas: tipoPagamento.value === 'parcelado' ? parcelas : []
     };
     const f = STORE.financeiro(tempClient);
@@ -339,13 +420,10 @@ STORE.onReady(() => {
     saldoEl.className = 'finance-row-value' + (f.meuSaldo < 0 ? ' is-negative' : '');
   }
   /* À vista: marcar como pago preenche a data com hoje (dá pra trocar); desmarcar limpa. */
-  ['clientePago', 'devPago', 'agenciaPaga'].forEach(name => {
-    form[name].addEventListener('change', () => {
-      const dateInput = form[name + 'Em'];
-      if (form[name].checked && !dateInput.value) dateInput.value = hoje();
-      if (!form[name].checked) dateInput.value = '';
-      updateFinance();
-    });
+  form.clientePago.addEventListener('change', () => {
+    if (form.clientePago.checked && !form.clientePagoEm.value) form.clientePagoEm.value = hoje();
+    if (!form.clientePago.checked) form.clientePagoEm.value = '';
+    updateFinance();
   });
 
   /* Quando o dev responsável é você mesmo (Ruan), não faz sentido ter uma cota de "dev"
@@ -356,7 +434,7 @@ STORE.onReady(() => {
   }
   function applyDevMode() {
     const self = isSelfDev();
-    devPagoField.hidden = self;
+    repasseDevBlock.hidden = self;
     splitDevField.hidden = self;
     splitDevCard.hidden = self;
     financeDevRow.hidden = self;
@@ -378,16 +456,22 @@ STORE.onReady(() => {
         form.splitEuValor.value = numberToMoneyString(moneyStringToNumber(form.splitEuValor.value) + devValor);
         form.splitDevValor.value = '';
       }
-      /* As parcelas também perdem a marcação de repasse ao dev. */
-      parcelas.forEach((p) => { p.devPago = false; p.devPagoEm = ''; });
-      form.devPago.checked = false;
-      form.devPagoEm.value = '';
+      /* Sem cota de dev, os repasses a ele deixam de existir. */
+      repassesPorQuem.dev = [];
+      renderRepasses('dev');
     }
     renderParcelas();
     updateSplitTotal();
     updateFinance();
   }
   form.devResponsavel.addEventListener('change', applyDevMode);
+
+  /* Mostra o nome do dev escolhido no cabeçalho do bloco de repasse. */
+  function updateRepasseDevNome() {
+    const nome = form.devResponsavel.value.trim();
+    repasseDevNome.textContent = nome && !isSelfDev() ? ' · ' + nome : '';
+  }
+  form.devResponsavel.addEventListener('change', updateRepasseDevNome);
 
   /* ===== Modo edição: carrega os dados do cliente ===== */
   let currentClient = STORE.blankClient();
@@ -409,12 +493,8 @@ STORE.onReady(() => {
       form.origem.value = existing.origem || '';
       ensureOptionExists(form.devResponsavel, existing.devResponsavel);
       form.devResponsavel.value = existing.devResponsavel || '';
-      form.devPago.checked = !!existing.devPago;
-      form.devPagoEm.value = existing.devPagoEm || '';
       form.clientePago.checked = !!existing.clientePago;
       form.clientePagoEm.value = existing.clientePagoEm || '';
-      form.agenciaPaga.checked = !!existing.agenciaPaga;
-      form.agenciaPagaEm.value = existing.agenciaPagaEm || '';
       form.tipoPagamento.value = existing.tipoPagamento || 'avista';
       form.dataInicio.value = existing.dataInicio || '';
       form.prazoFinal.value = existing.prazoFinal || '';
@@ -426,13 +506,18 @@ STORE.onReady(() => {
       form.splitEuValor.value = numberToMoneyString(existing.splitEuValor);
       form.splitDevValor.value = numberToMoneyString(existing.splitDevValor);
       splitModo = existing.splitModo === 'valor' ? 'valor' : 'percentual';
-      /* Traz as marcações de repasse pra dentro de cada parcela (clientes salvos na versão
-         antiga tinham só a marcação do projeto inteiro — veja STORE.parcelasComRepasse). */
-      parcelas = STORE.parcelasComRepasse(existing).map(p => ({ ...p }));
+      parcelas = (existing.parcelas || []).map(p => ({ ...p }));
+      /* Converte as marcações "pago sim/não" das versões anteriores em lançamentos com
+         valor e data, pra nenhum repasse já registrado se perder (veja STORE.repasseEntries). */
+      repassesPorQuem.dev = STORE.repasseEntries(existing, 'dev');
+      repassesPorQuem.agencia = STORE.repasseEntries(existing, 'agencia');
       deleteBtn.hidden = false;
     }
   }
   applySplitModo(splitModo);
+  renderRepasses('dev');
+  renderRepasses('agencia');
+  updateRepasseDevNome();
   renderParcelas();
   toggleParcelasVisibility();
   applyDevMode();
@@ -444,8 +529,8 @@ STORE.onReady(() => {
     return JSON.stringify({
       empresa: form.empresa.value, nomeCliente: form.nomeCliente.value, valor: form.valor.value, tipoProjeto: form.tipoProjeto.value,
       origem: form.origem.value, devResponsavel: form.devResponsavel.value,
-      devPago: form.devPago.checked, clientePago: form.clientePago.checked, agenciaPaga: form.agenciaPaga.checked,
-      devPagoEm: form.devPagoEm.value, clientePagoEm: form.clientePagoEm.value, agenciaPagaEm: form.agenciaPagaEm.value,
+      clientePago: form.clientePago.checked, clientePagoEm: form.clientePagoEm.value,
+      repassesDev: repassesPorQuem.dev, repassesAgencia: repassesPorQuem.agencia,
       tipoPagamento: form.tipoPagamento.value, dataInicio: form.dataInicio.value, prazoFinal: form.prazoFinal.value,
       status: form.status.value, splitModo, splitAgencia: form.splitAgencia.value, splitEu: form.splitEu.value,
       splitDev: form.splitDev.value, splitAgenciaValor: form.splitAgenciaValor.value,
@@ -498,12 +583,11 @@ STORE.onReady(() => {
       tipoProjeto: form.tipoProjeto.value.trim(),
       origem: form.origem.value,
       devResponsavel: form.devResponsavel.value.trim(),
-      devPago: form.devPago.checked,
-      devPagoEm: form.devPago.checked ? form.devPagoEm.value : '',
       clientePago: form.clientePago.checked,
       clientePagoEm: form.clientePago.checked ? form.clientePagoEm.value : '',
-      agenciaPaga: form.agenciaPaga.checked,
-      agenciaPagaEm: form.agenciaPaga.checked ? form.agenciaPagaEm.value : '',
+      /* Lançamentos em branco (sem data e sem valor) não são salvos. */
+      repassesDev: repassesPorQuem.dev.filter(r => r.data || r.valor > 0),
+      repassesAgencia: repassesPorQuem.agencia.filter(r => r.data || r.valor > 0),
       tipoPagamento: form.tipoPagamento.value,
       dataInicio: form.dataInicio.value,
       prazoFinal: form.prazoFinal.value,

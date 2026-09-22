@@ -65,11 +65,17 @@ Por padrão, cada cliente novo vem com **20% agência / 40% eu / 40% dev**, mas 
 
 ## Situação financeira real (dinheiro que já entrou/saiu de verdade)
 
-Separado da divisão combinada, cada cliente tem 3 marcações de pagamento — **Cliente pagou**, **Dev pago** e **Agência paga** — e cada uma guarda **a data em que o pagamento foi feito** (ao marcar, a data de hoje é preenchida sozinha e pode ser trocada).
+Separado da divisão combinada, cada cliente registra o dinheiro que realmente entrou e saiu, em duas partes:
 
-- **Projeto parcelado:** as três marcações ficam **em cada parcela**, porque um projeto que começa num mês e termina no outro tem repasses em datas diferentes (o dev costuma ser pago no início, a agência no fim do mês). O repasse deixa de ser tudo-ou-nada: o Financeiro mostra "Parcial" quando só parte das parcelas foi repassada.
-- **Projeto à vista:** continua com uma marcação única por projeto, na seção "Situação de pagamento".
-- Clientes cadastrados antes dessa mudança continuam valendo: a marcação antiga do projeto inteiro passa a valer para todas as parcelas ao abrir o cadastro.
+**1. Pagamento do cliente** — marcação com a data em que o cliente pagou (ao marcar, a data de hoje entra sozinha e pode ser trocada). No projeto **parcelado** fica em cada parcela; no **à vista**, uma marcação única do projeto.
+
+**2. Repasses ao dev e à agência** — uma seção própria onde você lança **cada pagamento com valor e data**, em vez de um "pago sim/não". É assim porque o repasse não acompanha as parcelas do cliente: o dev costuma ser pago adiantado (no começo do projeto) ou depois do fim, e a agência no fechamento do mês — e os dois podem ser parciais.
+
+Cada destinatário tem um bloco mostrando **quanto já recebeu do total que tem a receber**, com barra de progresso e o quanto **ainda falta pagar**. O botão "Registrar pagamento" já vem preenchido com a data de hoje e o valor que falta — na maioria das vezes é só salvar.
+
+- O total a receber sai da divisão do projeto (a % ou o valor em R$ definido no cadastro).
+- No **Financeiro**, o repasse conta no mês em que o pagamento foi feito — é quando o dinheiro saiu do caixa.
+- Clientes cadastrados nas versões anteriores continuam valendo: as marcações antigas de "pago" viram lançamentos com a cota proporcional e a data que estava salva, sem perder nada.
 
 ## Financeiro da empresa
 

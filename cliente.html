@@ -134,8 +134,8 @@
       </div>
       <div class="parcelas-list" id="parcelasList" hidden></div>
 
-      <div class="section-title" id="situacaoTitle">Situação de pagamento</div>
-      <p class="field-hint" id="situacaoHint" style="margin:-8px 0 12px;" hidden>No parcelado, marque o pagamento ao dev e à agência em cada parcela, logo acima — assim fica registrado a data de cada repasse.</p>
+      <div class="section-title" id="situacaoTitle">Pagamento do cliente</div>
+      <p class="field-hint" id="situacaoHint" style="margin:-8px 0 12px;" hidden>No parcelado, o pagamento do cliente é marcado em cada parcela, logo acima.</p>
       <div class="pay-rows" id="payRows">
         <div class="pay-row" id="clientePagoField">
           <label class="checkbox-field">
@@ -145,26 +145,6 @@
           <label class="pay-date">
             <span>em</span>
             <input type="date" name="clientePagoEm" aria-label="Data em que o cliente pagou">
-          </label>
-        </div>
-        <div class="pay-row" id="devPagoField">
-          <label class="checkbox-field">
-            <input type="checkbox" name="devPago">
-            <span>Dev já foi pago</span>
-          </label>
-          <label class="pay-date">
-            <span>em</span>
-            <input type="date" name="devPagoEm" aria-label="Data em que o dev foi pago">
-          </label>
-        </div>
-        <div class="pay-row" id="agenciaPagaField">
-          <label class="checkbox-field">
-            <input type="checkbox" name="agenciaPaga">
-            <span>Agência já foi paga</span>
-          </label>
-          <label class="pay-date">
-            <span>em</span>
-            <input type="date" name="agenciaPagaEm" aria-label="Data em que a agência foi paga">
           </label>
         </div>
       </div>
@@ -202,6 +182,31 @@
       </div>
       <div class="split-total" id="splitTotal">Soma: 100%
         <button type="button" class="btn-link-reset split-total-action" id="useSplitSumBtn" hidden></button>
+      </div>
+
+      <div class="section-title">Repasses — quanto já paguei ao dev e à agência</div>
+      <p class="field-hint" style="margin:-8px 0 14px;">Lance cada pagamento com o valor e a data em que você fez. Pode ser adiantado, parcial ou depois do fim do projeto — a barra mostra quanto ainda falta pagar.</p>
+      <div class="repasse-blocks">
+        <div class="repasse-block" id="repasseDevBlock" data-quem="dev">
+          <div class="repasse-head">
+            <div class="repasse-title">Dev<span id="repasseDevNome"></span></div>
+            <div class="repasse-nums"><strong id="repasseDevPago">R$ 0,00</strong><span id="repasseDevTotal">de R$ 0,00</span></div>
+          </div>
+          <div class="repasse-bar"><span id="repasseDevFill"></span></div>
+          <div class="repasse-status" id="repasseDevStatus"></div>
+          <div class="repasse-list" id="repasseDevList"></div>
+          <button type="button" class="btn btn-outline btn-sm" data-add-repasse="dev"><svg class="icon-sm"><use href="#i-plus"/></svg>Registrar pagamento ao dev</button>
+        </div>
+        <div class="repasse-block" id="repasseAgenciaBlock" data-quem="agencia">
+          <div class="repasse-head">
+            <div class="repasse-title">Agência</div>
+            <div class="repasse-nums"><strong id="repasseAgenciaPago">R$ 0,00</strong><span id="repasseAgenciaTotal">de R$ 0,00</span></div>
+          </div>
+          <div class="repasse-bar"><span id="repasseAgenciaFill"></span></div>
+          <div class="repasse-status" id="repasseAgenciaStatus"></div>
+          <div class="repasse-list" id="repasseAgenciaList"></div>
+          <button type="button" class="btn btn-outline btn-sm" data-add-repasse="agencia"><svg class="icon-sm"><use href="#i-plus"/></svg>Registrar pagamento à agência</button>
+        </div>
       </div>
 
       <div class="section-title">Situação financeira real deste projeto</div>
