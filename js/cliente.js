@@ -486,6 +486,7 @@ STORE.onReady(() => {
       document.getElementById('formTitle').textContent = existing.empresa || 'Editar cliente';
       form.empresa.value = existing.empresa || '';
       form.nomeCliente.value = existing.nomeCliente || '';
+      form.telefone.value = existing.telefone || '';
       form.valor.value = numberToMoneyString(existing.valor);
       ensureOptionExists(form.tipoProjeto, existing.tipoProjeto);
       form.tipoProjeto.value = existing.tipoProjeto || '';
@@ -527,7 +528,7 @@ STORE.onReady(() => {
      original do cliente). */
   function snapshotForm() {
     return JSON.stringify({
-      empresa: form.empresa.value, nomeCliente: form.nomeCliente.value, valor: form.valor.value, tipoProjeto: form.tipoProjeto.value,
+      empresa: form.empresa.value, nomeCliente: form.nomeCliente.value, telefone: form.telefone.value, valor: form.valor.value, tipoProjeto: form.tipoProjeto.value,
       origem: form.origem.value, devResponsavel: form.devResponsavel.value,
       clientePago: form.clientePago.checked, clientePagoEm: form.clientePagoEm.value,
       repassesDev: repassesPorQuem.dev, repassesAgencia: repassesPorQuem.agencia,
@@ -579,6 +580,7 @@ STORE.onReady(() => {
       ...currentClient,
       empresa: form.empresa.value.trim(),
       nomeCliente: form.nomeCliente.value.trim(),
+      telefone: form.telefone.value.trim(),
       valor: moneyStringToNumber(form.valor.value),
       tipoProjeto: form.tipoProjeto.value.trim(),
       origem: form.origem.value,

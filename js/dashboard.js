@@ -155,6 +155,7 @@ STORE.onReady(() => {
           <div>
             <div class="client-card-name">${STORE.esc(c.empresa || 'Sem nome')}</div>
             <div class="client-card-role">${c.nomeCliente ? STORE.esc(c.nomeCliente) + ' • ' : ''}${STORE.esc(c.tipoProjeto || '—')}</div>
+            ${c.telefone ? `<button type="button" class="client-card-phone" data-phone="${STORE.esc(c.telefone)}" title="Abrir no WhatsApp"><svg class="icon-sm"><use href="#i-phone"/></svg>${STORE.esc(c.telefone)}</button>` : ''}
           </div>
           <div class="client-card-value">${STORE.formatBRL(c.valor)}</div>
           <div class="client-card-foot">
@@ -166,6 +167,15 @@ STORE.onReady(() => {
         </div>
       </a>`;
     }).join('');
+    /* Mesmo comportamento do telefone na lista de clientes. */
+    grid.querySelectorAll('.client-card-phone').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const link = STORE.whatsappLink(btn.dataset.phone);
+        if (link) window.open(link, '_blank', 'noopener');
+      });
+    });
   }
 
   /* ===== Modal de detalhamento (clique no card de projetos fechados) ===== */

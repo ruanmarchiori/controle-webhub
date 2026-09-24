@@ -24,20 +24,25 @@ STORE.onReady(() => {
   function buildScope(mode, period) {
     const entries = clients
       .map(c => ({ c, f: mode === 'mensal' ? STORE.financeiroPorMes(c, period) : STORE.financeiro(c) }))
-      .filter(({ f }) => f.valorTotal > 0);
+      /* Entra quem teve QUALQUER movimento no escopo: valor vencendo no mês OU um repasse
+         feito nele. Sem a segunda parte, um pagamento adiantado ao dev (num mês em que
+         nenhuma parcela vence) sumia do "Repassado para devs" daquele mês. */
+      .filter(({ f }) => f.valorTotal > 0 || f.devRepassado > 0 || f.agenciaRepassada > 0);
 
     const totals = {
       totalFechado: 0, totalRecebido: 0, totalPendenteReceber: 0,
-      totalDevRepassado: 0, totalDevPendente: 0,
-      totalAgenciaRepassada: 0, totalAgenciaPendente: 0,
+      totalDevValor: 0, totalDevRepassado: 0, totalDevPendente: 0,
+      totalAgenciaValor: 0, totalAgenciaRepassada: 0, totalAgenciaPendente: 0,
       totalMeuSaldo: 0
     };
     entries.forEach(({ f }) => {
       totals.totalFechado += f.valorTotal;
       totals.totalRecebido += f.recebido;
       totals.totalPendenteReceber += f.pendenteReceber;
+      totals.totalDevValor += f.devValor;
       totals.totalDevRepassado += f.devRepassado;
       totals.totalDevPendente += f.devPendente;
+      totals.totalAgenciaValor += f.agenciaValor;
       totals.totalAgenciaRepassada += f.agenciaRepassada;
       totals.totalAgenciaPendente += f.agenciaPendente;
       totals.totalMeuSaldo += f.meuSaldo;
@@ -279,8 +284,17 @@ STORE.onReady(() => {
 
     document.getElementById('mesFechado').textContent = STORE.formatBRL(s.totalFechado);
     document.getElementById('mesRecebido').textContent = STORE.formatBRL(s.totalRecebido);
-    document.getElementById('mesAgencia').textContent = STORE.formatBRL(s.totalAgenciaRepassada);
     document.getElementById('mesSaldo').textContent = STORE.formatBRL(s.totalMeuSaldo);
+
+    /* A linha da agência é "quanto tenho que pagar pra ela referente a este mês" — a cota
+       dela sobre o que entrou no mês. O subtítulo diz o quanto disso já saiu do caixa
+       (antes esta linha mostrava o já pago, contradizendo o próprio rótulo). */
+    document.getElementById('mesAgencia').textContent = STORE.formatBRL(s.totalAgenciaValor);
+    const agSub = document.getElementById('mesAgenciaSub');
+    const faltaAg = s.totalAgenciaValor - s.totalAgenciaRepassada;
+    if (s.totalAgenciaValor <= 0) agSub.textContent = 'Nada a pagar neste mês';
+    else if (faltaAg > 0.009) agSub.textContent = `${STORE.formatBRL(s.totalAgenciaRepassada)} já pago · falta ${STORE.formatBRL(faltaAg)}`;
+    else agSub.textContent = 'Já pago';
 
     renderSalarySplit();
   }

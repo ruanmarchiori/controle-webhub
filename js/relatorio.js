@@ -29,14 +29,21 @@ STORE.onReady(() => {
       .filter(({ f }) => f.valorTotal > 0);
   }
 
-  function computeSummary(entries) {
+  /* As saídas do mês (repasses) são somadas de TODOS os clientes, não só dos que têm
+     parcela vencendo no mês: um pagamento adiantado ao dev sai do caixa naquele mês
+     mesmo que o projeto não tenha nada vencendo nele. A lista de clientes do relatório
+     continua sendo a de quem tem valor no período. */
+  function computeSummary(entries, period) {
     const acc = { totalFechado: 0, totalRecebido: 0, totalDev: 0, totalAgencia: 0, totalEu: 0, count: entries.length };
     entries.forEach(({ f }) => {
       acc.totalFechado += f.valorTotal;
       acc.totalRecebido += f.recebido;
-      acc.totalDev += f.devRepassado;
-      acc.totalAgencia += f.agenciaRepassada;
       acc.totalEu += f.meuSaldo;
+    });
+    STORE.getAll().forEach((c) => {
+      const r = STORE.repasses(c, period);
+      acc.totalDev += r.dev;
+      acc.totalAgencia += r.agencia;
     });
     return acc;
   }
@@ -47,7 +54,7 @@ STORE.onReady(() => {
     const period = periodInput.value;
     if (!period) return;
     const entries = getMonthEntries(period);
-    const s = computeSummary(entries);
+    const s = computeSummary(entries, period);
 
     statsEl.innerHTML = `
       <div class="stat-card is-accent">
@@ -107,7 +114,7 @@ STORE.onReady(() => {
   document.getElementById('downloadPdfBtn').addEventListener('click', () => {
     const period = periodInput.value;
     const entries = getMonthEntries(period);
-    const s = computeSummary(entries);
+    const s = computeSummary(entries, period);
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 

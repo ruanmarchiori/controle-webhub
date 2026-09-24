@@ -40,7 +40,7 @@ importar.html     traz dados de um backup ou da versão antiga (localStorage)
 - `login.html` — tela de entrada (veja "Login e acesso" abaixo).
 - `index.html` — Dashboard: total de projetos fechados (clicável, abre a lista), gráfico de fechamentos por mês e status dos projetos (em desenvolvimento x concluído). Os números financeiros (recebido, repasses, lucro) ficam na aba Financeiro.
 - `clientes.html` — lista de todos os clientes cadastrados, com busca.
-- `cliente.html` — cadastro/edição de um cliente (a "aba" de cada cliente), incluindo origem do cliente, a divisão percentual (agência/eu/dev, editável por cliente, com o valor de cada parte já calculado na tela), a situação financeira real e as parcelas de pagamento.
+- `cliente.html` — cadastro/edição de um cliente (inclui telefone/WhatsApp, que aparece clicável no card da lista) (a "aba" de cada cliente), incluindo origem do cliente, a divisão percentual (agência/eu/dev, editável por cliente, com o valor de cada parte já calculado na tela), a situação financeira real e as parcelas de pagamento.
 - `financeiro.html` — visão financeira da empresa como um todo: valor total em caixa (recebido), repassado para devs, repassado para a agência e valor líquido — cada card clicável abre o detalhamento por cliente. Também tem a divisão do valor total (gráfico de rosca), o fechamento do mês (período escolhível) e a divisão "meu salário x caixa da empresa". Veja "Financeiro da empresa" abaixo.
 - `relatorio.html` — escolha um mês e baixe um PDF com o resumo financeiro do período (vendido, repassado, saldo, clientes fechados) e a lista de clientes daquele mês.
 - `configuracoes.html` — trocar sua senha, ativar o modo escuro, gerenciar as listas personalizadas e baixar/importar backup.

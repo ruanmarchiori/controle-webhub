@@ -8,6 +8,24 @@ STORE.onReady(() => {
     document.getElementById('clientCountPill').textContent = `${clients.length} cliente${clients.length === 1 ? '' : 's'}`;
   }
 
+  /* Telefone no card: abre o WhatsApp sem disparar o link do card. O card inteiro é um
+     <a>, então o telefone é um <button> que para a propagação do clique (um <a> dentro
+     de outro <a> seria HTML inválido). */
+  function phoneHTML(c) {
+    return c.telefone ? `<button type="button" class="client-card-phone" data-phone="${STORE.esc(c.telefone)}" title="Abrir no WhatsApp"><svg class="icon-sm"><use href="#i-phone"/></svg>${STORE.esc(c.telefone)}</button>` : '';
+  }
+
+  function bindPhones() {
+    grid.querySelectorAll('.client-card-phone').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const link = STORE.whatsappLink(btn.dataset.phone);
+        if (link) window.open(link, '_blank', 'noopener');
+      });
+    });
+  }
+
   function render(list) {
     if (!list.length) {
       grid.innerHTML = `
@@ -32,6 +50,7 @@ STORE.onReady(() => {
           <div>
             <div class="client-card-name">${STORE.esc(c.empresa || 'Sem nome')}</div>
             <div class="client-card-role">${c.nomeCliente ? STORE.esc(c.nomeCliente) + ' • ' : ''}${STORE.esc(c.tipoProjeto || '—')} ${c.devResponsavel ? '• ' + STORE.esc(c.devResponsavel) : ''}${c.origem ? ' • ' + STORE.esc(c.origem) : ''}</div>
+            ${phoneHTML(c)}
           </div>
           <div class="client-card-value">${STORE.formatBRL(c.valor)}</div>
           <div class="client-card-foot">
@@ -43,6 +62,7 @@ STORE.onReady(() => {
         </div>
       </a>`;
     }).join('');
+    bindPhones();
   }
 
   searchInput.addEventListener('input', () => {

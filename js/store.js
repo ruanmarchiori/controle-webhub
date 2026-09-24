@@ -178,6 +178,7 @@ const STORE = (function () {
       id: uid(),
       empresa: '',
       nomeCliente: '',
+      telefone: '',
       valor: 0,
       tipoProjeto: '',
       origem: '',
@@ -525,6 +526,14 @@ const STORE = (function () {
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  /* Link do WhatsApp a partir do telefone digitado em qualquer formato: só dígitos,
+     assumindo Brasil (55) quando o número vem sem o código do país. */
+  function whatsappLink(telefone) {
+    const d = String(telefone || '').replace(/\D/g, '');
+    if (d.length < 10) return '';
+    return 'https://wa.me/' + (d.length <= 11 ? '55' + d : d);
+  }
+
   function initials(name) {
     if (!name) return '?';
     /* Já sai escapado: as telas colocam isso direto em innerHTML. */
@@ -621,7 +630,7 @@ const STORE = (function () {
     onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
     splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo,
-    valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, formatBRL, formatDate, getDueCharges,
+    valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, whatsappLink, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,
     getSalaryPct, setSalaryPct, saveSetting, getSettings, DEFAULT_SALARY_PCT,
