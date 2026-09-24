@@ -93,6 +93,10 @@ A aba **Financeiro** (`financeiro.html`) junta os números financeiros de toda a
 **Projeto parcelado que cai em vários meses:** um projeto fechado em setembro com parcelas previstas pra outubro e novembro aparece em **cada um desses meses** (não só em setembro) — cada parcela conta no mês do próprio vencimento, com a % de cada um (agência/eu/dev) aplicada em cima do valor daquela parcela específica. Cliente à vista continua contando no mês em que foi fechado, já que não tem parcela com data própria. Isso vale tanto na aba Financeiro (visão geral no modo "Mensal" e "Fechamento do mês") quanto no relatório em PDF — os três batem entre si.
 - **Meu salário x caixa da empresa**: do saldo líquido do mês, um percentual (editável, guardado pra próxima vez) vira seu salário e o resto fica no caixa da empresa como reserva/reinvestimento. O padrão é **60% salário / 40% caixa** — uma recomendação geral pra uma empresa pequena de serviço que quer crescer com segurança (manter uma reserva de 30–40% em vez de retirar tudo), mas é só um ponto de partida: ajuste pro que fizer sentido pra sua realidade.
 
+## Cache do navegador
+
+Os HTML apontam para os js/css com uma versão na URL (`?v=...`). Sem isso o GitHub Pages manda o navegador guardar os arquivos por 10 minutos e uma atualização pode demorar a aparecer. **Antes de publicar uma alteração, rode `node tools/versao.js`** — ele carimba a data/hora em todos os HTML e o navegador baixa a versão nova na hora.
+
 ## Publicar e atualizar
 
 Veja **[DEPLOY.md](DEPLOY.md)**: GitHub Pages (modo local, grátis) ou Hostinger (modo server). Nos dois casos, atualizar é `git push`.
