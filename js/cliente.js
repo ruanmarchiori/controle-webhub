@@ -288,23 +288,28 @@ STORE.onReady(() => {
     document.getElementById(`repasse${cap}Total`).textContent = `de ${STORE.formatBRL(r.total)}`;
     document.getElementById(`repasse${cap}Fill`).style.width = `${r.pctPago * 100}%`;
 
-    /* O que importa no dia a dia é quanto já VENCEU: a parte do que o cliente pagou.
-       O resto só é devido quando o cliente pagar as parcelas que faltam. */
+    /* O que importa no dia a dia é quanto já VENCEU — e isso é diferente para cada um:
+       o dev só é pago quando o cliente quita o projeto; a agência vai vencendo junto com
+       os pagamentos do cliente (acerto no fechamento do mês). */
     const status = document.getElementById(`repasse${cap}Status`);
+    const aindaNao = quem === 'dev'
+      ? 'Vence quando o cliente quitar o projeto'
+      : 'Vence junto com os pagamentos do cliente';
+
     if (r.total <= 0) {
       status.textContent = 'Defina o valor do projeto e a divisão para ver quanto pagar.';
       status.className = 'repasse-status';
     } else if (r.faltaAgora > 0) {
       const resto = r.falta - r.faltaAgora;
-      status.textContent = `Falta repassar ${STORE.formatBRL(r.faltaAgora)} do que o cliente já pagou`
-        + (resto > 0.009 ? ` · ${STORE.formatBRL(resto)} quando ele pagar o resto` : '');
+      status.textContent = `Falta repassar ${STORE.formatBRL(r.faltaAgora)} — já venceu`
+        + (resto > 0.009 ? ` · ${STORE.formatBRL(resto)} depois` : '');
       status.className = 'repasse-status is-pending';
     } else if (r.falta < 0) {
       status.textContent = `Pago ${STORE.formatBRL(-r.falta)} a mais que o combinado`;
       status.className = 'repasse-status is-over';
     } else if (r.falta > 0) {
-      status.textContent = `Em dia com o recebido · ${STORE.formatBRL(r.falta)} quando o cliente pagar o resto`;
-      status.className = 'repasse-status is-ok';
+      status.textContent = `${aindaNao} · ${STORE.formatBRL(r.falta)} a pagar`;
+      status.className = 'repasse-status';
     } else {
       status.textContent = 'Tudo pago ✓';
       status.className = 'repasse-status is-ok';

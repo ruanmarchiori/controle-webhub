@@ -84,11 +84,11 @@ STORE.onReady(() => {
     /* Em cima: o que saiu do caixa no escopo escolhido. Embaixo: o que falta repassar. */
     document.getElementById('statTotalDev').textContent = STORE.formatBRL(t.totalDevRepassado);
     setSub(document.getElementById('statDevSub'), aRepassar.dev, t.totalDevRepassado,
-      `${STORE.formatBRL(aRepassar.dev)} a repassar`, 'Em dia com o recebido');
+      `${STORE.formatBRL(aRepassar.dev)} a repassar`, 'Nada vencido');
 
     document.getElementById('statTotalAgencia').textContent = STORE.formatBRL(t.totalAgenciaRepassada);
     setSub(document.getElementById('statAgenciaSub'), aRepassar.agencia, t.totalAgenciaRepassada,
-      `${STORE.formatBRL(aRepassar.agencia)} a repassar`, 'Em dia com o recebido');
+      `${STORE.formatBRL(aRepassar.agencia)} a repassar`, 'Nada vencido');
 
     document.getElementById('statTotalEu').textContent = STORE.formatBRL(t.totalMeuSaldo);
   }
@@ -208,13 +208,13 @@ STORE.onReady(() => {
         const g = byDev[name];
         const rows = g.rows.map(({ c, f }) => `
           <div class="modal-row">
-            <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).devRepassado, STORE.financeiro(c).devPendente)} • ${STORE.formatBRL(STORE.financeiro(c).devDevido)} devidos até agora</span></div>
+            <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).devRepassado, STORE.financeiro(c).devPendente)} • ${STORE.financeiro(c).quitado ? STORE.formatBRL(STORE.financeiro(c).devValor) + ' devidos (cliente quitou)' : 'o cliente ainda não quitou'}</span></div>
             <div class="modal-row-value">${STORE.formatBRL(f.devRepassado)}</div>
           </div>`).join('');
         return `<div class="modal-group"><div class="modal-group-title">${STORE.esc(name)} — ${STORE.formatBRL(g.repassado)}${g.pendente > 0 ? ` (${STORE.formatBRL(g.pendente)} pendente)` : ''}</div>${rows}</div>`;
       }).join('');
     return groupsHTML + `<div class="modal-total-row"><span>Total repassado</span><span>${STORE.formatBRL(t.totalDevRepassado)}</span></div>
-      ${aRepassar.dev > 0 ? `<div class="modal-total-row"><span>A repassar (do que já foi recebido)</span><span>${STORE.formatBRL(aRepassar.dev)}</span></div>` : ''}`;
+      ${aRepassar.dev > 0 ? `<div class="modal-total-row"><span>A repassar (já vencido)</span><span>${STORE.formatBRL(aRepassar.dev)}</span></div>` : ''}`;
   }
 
   function agenciaModalBody({ entries, totals: t }) {
@@ -227,7 +227,7 @@ STORE.onReady(() => {
     return `
       <div class="modal-group">${rows}</div>
       <div class="modal-total-row"><span>Total repassado</span><span>${STORE.formatBRL(t.totalAgenciaRepassada)}</span></div>
-      ${aRepassar.agencia > 0 ? `<div class="modal-total-row"><span>A repassar (do que já foi recebido)</span><span>${STORE.formatBRL(aRepassar.agencia)}</span></div>` : ''}`;
+      ${aRepassar.agencia > 0 ? `<div class="modal-total-row"><span>A repassar (já vencido)</span><span>${STORE.formatBRL(aRepassar.agencia)}</span></div>` : ''}`;
   }
 
   function saldoModalBody({ entries, totals: t }) {

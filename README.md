@@ -75,7 +75,10 @@ Cada destinatário tem um bloco mostrando **quanto já recebeu do total que tem 
 
 - O total a receber sai da divisão do projeto (a % ou o valor em R$ definido no cadastro).
 - No **Financeiro**, o repasse conta no mês em que o pagamento foi feito — é quando o dinheiro saiu do caixa.
-- **Você só deve ao dev/agência a parte do que o cliente já pagou.** Por isso, no card do Financeiro o número de cima é o que saiu do caixa no período e o de baixo ("a repassar") é a cota deles sobre o **recebido**, menos o que já foi repassado — a cota do que o cliente ainda não pagou só vira dívida quando ele pagar. No cadastro, a barra mostra o total do projeto e a linha abaixo dela diz quanto já venceu.
+- **Quando cada repasse vence (é o que alimenta o "a repassar"):**
+  - **Dev** — só quando o cliente **quita o projeto** (todas as parcelas pagas, ou o pagamento à vista marcado). Antes disso a cota dele não conta como dívida, porque o combinado é pagar o dev no fim. Adiantamentos podem ser lançados normalmente e abatem do total.
+  - **Agência** — vai vencendo junto com os pagamentos do cliente (a cota sobre o que já entrou), porque o acerto é no fechamento do mês.
+- No card do Financeiro: em cima o que **saiu do caixa** no período; embaixo o que **falta repassar** (já vencido), somando todos os projetos.
 **Comprovante:** cada pagamento (do cliente, ao dev e à agência) tem um campo para o **link do comprovante** — você guarda a foto/PDF no Google Drive, OneDrive ou Dropbox e cola o link aqui; quando o link é válido aparece um botão "Abrir" do lado. É link em vez de anexo porque o painel é estático (sem servidor para receber upload) e o localStorage tem 5–10 MB no total — dois ou três comprovantes já o estourariam. No modo server dá para trocar por upload de verdade.
 
 - Clientes cadastrados nas versões anteriores continuam valendo: as marcações antigas de "pago" viram lançamentos com a cota proporcional e a data que estava salva, sem perder nada.

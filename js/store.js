@@ -390,14 +390,19 @@ const STORE = (function () {
     const total = quem === 'dev' ? split.dev : split.agencia;
     const pago = repasses(client)[quem === 'dev' ? 'dev' : 'agencia'];
     const falta = total - pago;
-    /* Quanto disso já é devido AGORA: a cota sobre o que o cliente pagou até aqui. */
-    const devido = valorRecebido(client) * splitPercents(client)[quem === 'dev' ? 'dev' : 'agencia'];
+    /* Quanto disso já venceu: o dev só é pago no fim (quando o cliente quita o projeto);
+       a agência vai vencendo junto com o que o cliente paga, porque é acertada no
+       fechamento do mês. */
+    const devido = quem === 'dev'
+      ? (clienteQuitou(client) ? total : 0)
+      : valorRecebido(client) * splitPercents(client).agencia;
     const faltaAgora = devido - pago;
     const zerar = (n) => (Math.abs(n) < 0.01 ? 0 : n);
     return {
       total,
       pago,
       devido,
+      quitado: clienteQuitou(client),
       /* Menos de um centavo de diferença é arredondamento, não dívida. */
       falta: zerar(falta),
       faltaAgora: Math.max(0, zerar(faltaAgora)),
@@ -416,6 +421,18 @@ const STORE = (function () {
     return client.clientePago ? (parseFloat(client.valor) || 0) : 0;
   }
 
+  /* O cliente quitou o projeto? É o gatilho do pagamento ao dev: o dev só é pago no fim,
+     quando o cliente paga o restante. Parcelado = todas as parcelas pagas; à vista = o
+     check de pago. (Comparar somas não serve: as parcelas podem não fechar exatamente o
+     valor do projeto.) */
+  function clienteQuitou(client) {
+    if (client.tipoPagamento === 'parcelado') {
+      const parcelas = client.parcelas || [];
+      return parcelas.length > 0 && parcelas.every(p => p.pago);
+    }
+    return !!client.clientePago;
+  }
+
   /* Situação financeira real de um cliente: quanto entrou, quanto já saiu (repassado pro
      dev/agência) e quanto sobra de fato "no banco" pra mim — diferente do splitValues, que
      é só a divisão combinada, sem olhar se alguém pagou alguma coisa ainda. */
@@ -424,6 +441,7 @@ const STORE = (function () {
     const split = splitValues(client);
     const recebido = valorRecebido(client);
     const pago = repasses(client);
+    const quitado = clienteQuitou(client);
     const devRepassado = pago.dev;
     const agenciaRepassada = pago.agencia;
     const euPct = splitPercents(client).eu;
@@ -434,14 +452,16 @@ const STORE = (function () {
       /* devValor/agenciaValor = cota do projeto INTEIRO (o quanto vão receber no fim). */
       devValor: split.dev,
       devRepassado,
-      /* devDevido/agenciaDevido = o que já "venceu" pra eles: a cota sobre o que o cliente
-         de fato pagou. É essa a dívida real do momento — não se deve ao dev a parte de um
-         dinheiro que ainda não entrou. O "pendente" sai daí. */
-      devDevido: recebido * splitPercents(client).dev,
-      devPendente: Math.max(0, recebido * splitPercents(client).dev - devRepassado),
+      /* O DEV é pago no fim do projeto: a cota dele só vira dívida quando o cliente quita.
+         Antes disso não há nada "a repassar" (o que não impede lançar um adiantamento). */
+      quitado,
+      devDevido: quitado ? split.dev : 0,
+      devPendente: quitado ? Math.max(0, split.dev - devRepassado) : 0,
       devPendenteProjeto: Math.max(0, split.dev - devRepassado),
       agenciaValor: split.agencia,
       agenciaRepassada,
+      /* A AGÊNCIA é acertada no fechamento do mês, sobre o que entrou — então a cota dela
+         vai vencendo junto com os pagamentos do cliente. */
       agenciaDevido: recebido * splitPercents(client).agencia,
       agenciaPendente: Math.max(0, recebido * splitPercents(client).agencia - agenciaRepassada),
       agenciaPendenteProjeto: Math.max(0, split.agencia - agenciaRepassada),
@@ -652,7 +672,7 @@ const STORE = (function () {
   return {
     onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
-    splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo,
+    splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo, clienteQuitou,
     valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, whatsappLink, safeUrl, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,
