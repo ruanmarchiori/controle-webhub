@@ -89,11 +89,19 @@ STORE.onReady(() => {
     cotaTotal.agencia += s.agencia;
     jaRepassado.dev += f.devRepassado;
     jaRepassado.agencia += f.agenciaRepassada;
-    if (!f.quitado) {
-      aguardando.dev += Math.max(0, s.dev - f.devRepassado);
-      aguardando.agencia += Math.max(0, s.agencia - f.agenciaRepassada);
-    }
+    /* O que ainda NÃO venceu: a cota menos o que já saiu e menos o que venceu e falta.
+       Assim as três linhas do rodapé sempre somam a cota total. */
+    aguardando.dev += Math.max(0, s.dev - f.devRepassado - f.devPendente);
+    aguardando.agencia += Math.max(0, s.agencia - f.agenciaRepassada - f.agenciaPendente);
   });
+
+  /* Em que etapa do combinado o projeto está (50% na largada, 50% na quitação). */
+  function etapaTexto(f, quem) {
+    const devido = quem === 'dev' ? f.devDevido : f.agenciaDevido;
+    if (f.quitado) return STORE.formatBRL(devido) + ' devidos (cliente quitou)';
+    if (f.comecou) return STORE.formatBRL(devido) + ' devidos (metade da largada)';
+    return 'o projeto ainda não começou';
+  }
 
   /* Rodapé comum dos detalhamentos de repasse: mostra a conta fechando. */
   function rodapeRepasse(quem, repassadoNoEscopo) {
@@ -101,8 +109,8 @@ STORE.onReady(() => {
       ? `<div class="modal-total-row${destaque ? ' is-strong' : ''}"><span>${rotulo}</span><span>${STORE.formatBRL(valor)}</span></div>`
       : '';
     return linha(scopeMode === 'mensal' ? 'Repassado no mês' : 'Total já repassado', repassadoNoEscopo)
-      + linha('A repassar agora (cliente já quitou)', aRepassar[quem], true)
-      + linha('Aguardando o cliente quitar', aguardando[quem])
+      + linha('A repassar agora (já venceu)', aRepassar[quem], true)
+      + linha('Ainda não venceu', aguardando[quem])
       + linha('Cota total de todos os projetos', cotaTotal[quem]);
   }
 
@@ -240,7 +248,7 @@ STORE.onReady(() => {
         const g = byDev[name];
         const rows = g.rows.map(({ c, f }) => `
           <div class="modal-row">
-            <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).devRepassado, STORE.financeiro(c).devPendente)} • ${STORE.financeiro(c).quitado ? STORE.formatBRL(STORE.financeiro(c).devValor) + ' devidos (cliente quitou)' : 'o cliente ainda não quitou'}</span></div>
+            <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).devRepassado, STORE.financeiro(c).devPendente)} • ${etapaTexto(STORE.financeiro(c), 'dev')}</span></div>
             <div class="modal-row-value">${STORE.formatBRL(f.devRepassado)}</div>
           </div>`).join('');
         return `<div class="modal-group"><div class="modal-group-title">${STORE.esc(name)} — ${STORE.formatBRL(g.repassado)}${g.pendente > 0 ? ` (${STORE.formatBRL(g.pendente)} pendente)` : ''}</div>${rows}</div>`;
@@ -252,7 +260,7 @@ STORE.onReady(() => {
     if (!entries.length) return emptyMsg;
     const rows = entries.map(({ c, f }) => `
         <div class="modal-row">
-          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).agenciaRepassada, STORE.financeiro(c).agenciaPendente)} • ${STORE.financeiro(c).quitado ? STORE.formatBRL(STORE.financeiro(c).agenciaValor) + ' devidos (cliente quitou)' : 'o cliente ainda não quitou'}</span></div>
+          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).agenciaRepassada, STORE.financeiro(c).agenciaPendente)} • ${etapaTexto(STORE.financeiro(c), 'agencia')}</span></div>
           <div class="modal-row-value">${STORE.formatBRL(f.agenciaRepassada)}</div>
         </div>`).join('');
     return `
@@ -288,7 +296,7 @@ STORE.onReady(() => {
 
   document.getElementById('statCardRecebido').addEventListener('click', () => {
     const scope = currentTopScope();
-    openModal('Valor total em caixa (recebido)' + scopeSuffix(), recebidoModalBody(scope));
+    openModal('Total recebido dos clientes' + scopeSuffix(), recebidoModalBody(scope));
   });
 
   document.getElementById('statCardDev').addEventListener('click', () => {

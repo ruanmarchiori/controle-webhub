@@ -390,9 +390,9 @@ const STORE = (function () {
     const total = quem === 'dev' ? split.dev : split.agencia;
     const pago = repasses(client)[quem === 'dev' ? 'dev' : 'agencia'];
     const falta = total - pago;
-    /* Quanto disso já venceu: nada até o cliente quitar o projeto — os dois (dev e
-       agência) são pagos quando entra a última parcela. */
-    const devido = clienteQuitou(client) ? total : 0;
+    /* Quanto disso já venceu: metade na largada do projeto, metade quando o cliente quita. */
+    const vencida = fracaoVencida(client);
+    const devido = total * vencida;
     const faltaAgora = devido - pago;
     const zerar = (n) => (Math.abs(n) < 0.01 ? 0 : n);
     return {
@@ -400,6 +400,9 @@ const STORE = (function () {
       pago,
       devido,
       quitado: clienteQuitou(client),
+      comecou: projetoComecou(client),
+      vencida,
+      etapa: total * 0.5,
       /* Menos de um centavo de diferença é arredondamento, não dívida. */
       falta: zerar(falta),
       faltaAgora: Math.max(0, zerar(faltaAgora)),
@@ -422,6 +425,24 @@ const STORE = (function () {
      quando o cliente paga o restante. Parcelado = todas as parcelas pagas; à vista = o
      check de pago. (Comparar somas não serve: as parcelas podem não fechar exatamente o
      valor do projeto.) */
+  /* ===== Quanto da cota já venceu =====
+     O combinado é pagar em duas etapas, tanto pro dev quanto pra agência:
+       50% na largada do projeto (a partir da data de início) e
+       50% quando o cliente quita (paga a última parcela).
+     Enquanto o projeto não começou, nada venceu. Isso é o que alimenta o "a repassar" —
+     o valor que você precisa mandar agora, sem risco de mandar demais ou de menos. */
+  const ETAPA_INICIO = 0.5;
+
+  function projetoComecou(client) {
+    const inicio = (client.dataInicio || client.createdAt || '').slice(0, 10);
+    return !!inicio && inicio <= new Date().toISOString().slice(0, 10);
+  }
+
+  function fracaoVencida(client) {
+    if (clienteQuitou(client)) return 1;
+    return projetoComecou(client) ? ETAPA_INICIO : 0;
+  }
+
   function clienteQuitou(client) {
     if (client.tipoPagamento === 'parcelado') {
       const parcelas = client.parcelas || [];
@@ -445,6 +466,7 @@ const STORE = (function () {
     const recebido = valorRecebido(client);
     const pago = repasses(client);
     const quitado = clienteQuitou(client);
+    const vencida = fracaoVencida(client);
     const devRepassado = pago.dev;
     const agenciaRepassada = pago.agencia;
     const euPct = splitPercents(client).eu;
@@ -455,17 +477,21 @@ const STORE = (function () {
       /* devValor/agenciaValor = cota do projeto INTEIRO (o quanto vão receber no fim). */
       devValor: split.dev,
       devRepassado,
-      /* Dev e agência são pagos no FIM do projeto: a cota dos dois só vira dívida quando o
-         cliente paga a última parcela. Antes disso não há nada "a repassar" — o que não
-         impede lançar um adiantamento, que abate normalmente do total. */
+      /* A cota vence em duas etapas (veja fracaoVencida): metade na largada do projeto e
+         metade quando o cliente quita. "Devido" é o que já venceu; "pendente" é o que
+         venceu e ainda não foi pago — o valor a mandar agora. */
       quitado,
-      devDevido: quitado ? split.dev : 0,
-      devPendente: quitado ? Math.max(0, split.dev - devRepassado) : 0,
+      comecou: projetoComecou(client),
+      fracaoVencida: vencida,
+      devValorEtapa: split.dev * ETAPA_INICIO,
+      devDevido: split.dev * vencida,
+      devPendente: Math.max(0, split.dev * vencida - devRepassado),
       devPendenteProjeto: Math.max(0, split.dev - devRepassado),
       agenciaValor: split.agencia,
       agenciaRepassada,
-      agenciaDevido: quitado ? split.agencia : 0,
-      agenciaPendente: quitado ? Math.max(0, split.agencia - agenciaRepassada) : 0,
+      agenciaValorEtapa: split.agencia * ETAPA_INICIO,
+      agenciaDevido: split.agencia * vencida,
+      agenciaPendente: Math.max(0, split.agencia * vencida - agenciaRepassada),
       agenciaPendenteProjeto: Math.max(0, split.agencia - agenciaRepassada),
       euValor: split.eu,
       /* A minha parte é sempre a minha % do que já foi recebido do cliente — não depende
@@ -674,7 +700,7 @@ const STORE = (function () {
   return {
     onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
-    splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo, clienteQuitou,
+    splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo, clienteQuitou, projetoComecou, fracaoVencida,
     valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, whatsappLink, safeUrl, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,

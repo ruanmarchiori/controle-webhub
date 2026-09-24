@@ -301,6 +301,10 @@ STORE.onReady(() => {
       tipoPagamento: tipoPagamento.value,
       clientePago: form.clientePago.checked,
       parcelas: tipoPagamento.value === 'parcelado' ? parcelas : [],
+      /* A data de início decide se a primeira metade já venceu — sem ela o resumo
+         acharia que o projeto nem começou. */
+      dataInicio: form.dataInicio.value,
+      createdAt: currentClient.createdAt,
       repassesDev: repassesPorQuem.dev,
       repassesAgencia: repassesPorQuem.agencia
     };
@@ -315,24 +319,30 @@ STORE.onReady(() => {
     document.getElementById(`repasse${cap}Total`).textContent = `de ${STORE.formatBRL(r.total)}`;
     document.getElementById(`repasse${cap}Fill`).style.width = `${r.pctPago * 100}%`;
 
-    /* O que importa no dia a dia é quanto já VENCEU: nada até o cliente quitar o projeto —
-       dev e agência são pagos quando entra a última parcela. */
+    /* O combinado vence em duas etapas: metade na largada do projeto e metade quando o
+       cliente quita. O texto diz em qual etapa o projeto está e quanto já venceu, pra
+       você não mandar valor a mais nem a menos. */
     const status = document.getElementById(`repasse${cap}Status`);
-    const aindaNao = 'Vence quando o cliente quitar o projeto';
+    const metade = STORE.formatBRL(r.etapa);
+    const proximaEtapa = r.quitado
+      ? ''
+      : (r.comecou
+        ? ` · ${metade} quando o cliente quitar`
+        : ` · ${metade} quando o projeto começar e ${metade} quando o cliente quitar`);
 
     if (r.total <= 0) {
       status.textContent = 'Defina o valor do projeto e a divisão para ver quanto pagar.';
       status.className = 'repasse-status';
     } else if (r.faltaAgora > 0) {
-      const resto = r.falta - r.faltaAgora;
-      status.textContent = `Falta repassar ${STORE.formatBRL(r.faltaAgora)} — já venceu`
-        + (resto > 0.009 ? ` · ${STORE.formatBRL(resto)} depois` : '');
+      status.textContent = `Falta repassar ${STORE.formatBRL(r.faltaAgora)} — já venceu${proximaEtapa}`;
       status.className = 'repasse-status is-pending';
     } else if (r.falta < 0) {
       status.textContent = `Pago ${STORE.formatBRL(-r.falta)} a mais que o combinado`;
       status.className = 'repasse-status is-over';
     } else if (r.falta > 0) {
-      status.textContent = `${aindaNao} · ${STORE.formatBRL(r.falta)} a pagar`;
+      status.textContent = r.comecou
+        ? `Em dia com o que venceu${proximaEtapa}`
+        : `Nada venceu ainda${proximaEtapa}`;
       status.className = 'repasse-status';
     } else {
       status.textContent = 'Tudo pago ✓';
@@ -469,15 +479,10 @@ STORE.onReady(() => {
 
   /* Dinheiro que já entrou/saiu de verdade — separado da divisão combinada acima. */
   function updateFinance() {
-    const tempClient = {
-      ...splitFromForm(),
-      tipoPagamento: tipoPagamento.value,
-      clientePago: form.clientePago.checked,
-      repassesDev: repassesPorQuem.dev,
-      repassesAgencia: repassesPorQuem.agencia,
-      parcelas: tipoPagamento.value === 'parcelado' ? parcelas : []
-    };
-    const f = STORE.financeiro(tempClient);
+    /* Mesmo "cliente de mentira" usado pelos blocos de repasse — assim o painel de baixo
+       e as barras de cima nunca discordam (um dizia "em dia" e o outro "falta repassar"
+       porque este aqui não recebia a data de início). */
+    const f = STORE.financeiro(repasseDraft());
 
     /* Discreto mas sempre visível: vermelho enquanto falta receber/repassar, verde
        quando está em dia — pra nunca esquecer de repassar pro dev/agência. */
