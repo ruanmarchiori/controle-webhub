@@ -186,6 +186,7 @@ const STORE = (function () {
       /* Pagamento do cliente no projeto à vista (no parcelado, cada parcela tem o seu). */
       clientePago: false,
       clientePagoEm: '',
+      clienteComprovante: '',
       /* Repasses feitos ao dev e à agência: [{ data, valor }] — podem ser parciais e em
          qualquer data (adiantado, no fim do mês, depois do projeto). */
       repassesDev: [],
@@ -344,7 +345,7 @@ const STORE = (function () {
     const salvos = client[campo];
     if (Array.isArray(salvos)) {
       return salvos
-        .map(r => ({ data: r.data || '', valor: parseFloat(r.valor) || 0 }))
+        .map(r => ({ data: r.data || '', valor: parseFloat(r.valor) || 0, comprovante: r.comprovante || '' }))
         .filter(r => r.valor > 0 || r.data);
     }
 
@@ -358,6 +359,7 @@ const STORE = (function () {
       return parcelas
         .filter(par => par[flag])
         .map(par => ({
+          comprovante: '',
           data: par[flag + 'Em'] || par.data || '',
           valor: (parseFloat(par.valor) || 0) * pct[quem === 'dev' ? 'dev' : 'agencia']
         }))
@@ -365,7 +367,7 @@ const STORE = (function () {
     }
     if (client[flag]) {
       const total = quem === 'dev' ? split.dev : split.agencia;
-      if (total > 0) return [{ data: client[flag + 'Em'] || client.dataInicio || '', valor: total }];
+      if (total > 0) return [{ data: client[flag + 'Em'] || client.dataInicio || '', valor: total, comprovante: '' }];
     }
     return [];
   }
@@ -526,6 +528,13 @@ const STORE = (function () {
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  /* Só deixa passar link http/https. Serve pros comprovantes: um link colado como
+     "javascript:..." viraria código rodando na página ao ser clicado. */
+  function safeUrl(value) {
+    const v = String(value || '').trim();
+    return /^https?:\/\/\S+$/i.test(v) ? v : '';
+  }
+
   /* Link do WhatsApp a partir do telefone digitado em qualquer formato: só dígitos,
      assumindo Brasil (55) quando o número vem sem o código do país. */
   function whatsappLink(telefone) {
@@ -630,7 +639,7 @@ const STORE = (function () {
     onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
     splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo,
-    valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, whatsappLink, formatBRL, formatDate, getDueCharges,
+    valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, whatsappLink, safeUrl, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,
     getSalaryPct, setSalaryPct, saveSetting, getSettings, DEFAULT_SALARY_PCT,

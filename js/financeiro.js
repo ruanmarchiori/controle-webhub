@@ -63,20 +63,33 @@ STORE.onReady(() => {
     return buildScope(scopeMode, topPeriodInput.value || currentMonthKey);
   }
 
+  /* Quanto ainda falta pagar ao dev e à agência, somando TODOS os projetos — uma dívida
+     não pertence a um mês. Sem isso, no modo Mensal o "pendente" era a cota do que entrou
+     naquele mês menos o que foi pago nele: pagar mais que a cota do mês não mexia no
+     número, e o que sobrava era de outro cliente. O valor de cima (dinheiro que saiu) e o
+     de baixo (o que ainda devo) passam a ser sempre coerentes entre si. */
+  const dividaTotal = clients.reduce((acc, c) => {
+    const f = STORE.financeiro(c);
+    acc.dev += Math.max(0, f.devPendente);
+    acc.agencia += Math.max(0, f.agenciaPendente);
+    return acc;
+  }, { dev: 0, agencia: 0 });
+
   function renderTopStats() {
     const { totals: t } = currentTopScope();
+    const sufixo = scopeMode === 'mensal' ? ' a pagar no total' : ' a pagar';
 
     document.getElementById('statTotalRecebido').textContent = STORE.formatBRL(t.totalRecebido);
     setSub(document.getElementById('statRecebidoSub'), t.totalPendenteReceber, t.totalRecebido,
       `${STORE.formatBRL(t.totalPendenteReceber)} a receber`, 'Tudo recebido');
 
     document.getElementById('statTotalDev').textContent = STORE.formatBRL(t.totalDevRepassado);
-    setSub(document.getElementById('statDevSub'), t.totalDevPendente, t.totalDevRepassado,
-      `${STORE.formatBRL(t.totalDevPendente)} pendente`, 'Tudo em dia');
+    setSub(document.getElementById('statDevSub'), dividaTotal.dev, t.totalDevRepassado,
+      `${STORE.formatBRL(dividaTotal.dev)}${sufixo}`, 'Tudo em dia');
 
     document.getElementById('statTotalAgencia').textContent = STORE.formatBRL(t.totalAgenciaRepassada);
-    setSub(document.getElementById('statAgenciaSub'), t.totalAgenciaPendente, t.totalAgenciaRepassada,
-      `${STORE.formatBRL(t.totalAgenciaPendente)} pendente`, 'Tudo em dia');
+    setSub(document.getElementById('statAgenciaSub'), dividaTotal.agencia, t.totalAgenciaRepassada,
+      `${STORE.formatBRL(dividaTotal.agencia)}${sufixo}`, 'Tudo em dia');
 
     document.getElementById('statTotalEu').textContent = STORE.formatBRL(t.totalMeuSaldo);
   }
@@ -196,26 +209,26 @@ STORE.onReady(() => {
         const g = byDev[name];
         const rows = g.rows.map(({ c, f }) => `
           <div class="modal-row">
-            <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(f.devRepassado, f.devPendente)} • cota ${STORE.formatBRL(f.devValor)}</span></div>
+            <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).devRepassado, STORE.financeiro(c).devPendente)} • cota do projeto ${STORE.formatBRL(STORE.financeiro(c).devValor)}</span></div>
             <div class="modal-row-value">${STORE.formatBRL(f.devRepassado)}</div>
           </div>`).join('');
         return `<div class="modal-group"><div class="modal-group-title">${STORE.esc(name)} — ${STORE.formatBRL(g.repassado)}${g.pendente > 0 ? ` (${STORE.formatBRL(g.pendente)} pendente)` : ''}</div>${rows}</div>`;
       }).join('');
     return groupsHTML + `<div class="modal-total-row"><span>Total repassado</span><span>${STORE.formatBRL(t.totalDevRepassado)}</span></div>
-      ${t.totalDevPendente > 0 ? `<div class="modal-total-row"><span>Pendente</span><span>${STORE.formatBRL(t.totalDevPendente)}</span></div>` : ''}`;
+      ${dividaTotal.dev > 0 ? `<div class="modal-total-row"><span>Ainda a pagar (todos os projetos)</span><span>${STORE.formatBRL(dividaTotal.dev)}</span></div>` : ''}`;
   }
 
   function agenciaModalBody({ entries, totals: t }) {
     if (!entries.length) return emptyMsg;
     const rows = entries.map(({ c, f }) => `
         <div class="modal-row">
-          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(f.agenciaRepassada, f.agenciaPendente)} • ${pctTexto(STORE.splitPercents(c).agencia)} de ${STORE.formatBRL(f.recebido)} recebidos</span></div>
+          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).agenciaRepassada, STORE.financeiro(c).agenciaPendente)} • cota do projeto ${STORE.formatBRL(STORE.financeiro(c).agenciaValor)}</span></div>
           <div class="modal-row-value">${STORE.formatBRL(f.agenciaRepassada)}</div>
         </div>`).join('');
     return `
       <div class="modal-group">${rows}</div>
       <div class="modal-total-row"><span>Total repassado</span><span>${STORE.formatBRL(t.totalAgenciaRepassada)}</span></div>
-      ${t.totalAgenciaPendente > 0 ? `<div class="modal-total-row"><span>Pendente</span><span>${STORE.formatBRL(t.totalAgenciaPendente)}</span></div>` : ''}`;
+      ${dividaTotal.agencia > 0 ? `<div class="modal-total-row"><span>Ainda a pagar (todos os projetos)</span><span>${STORE.formatBRL(dividaTotal.agencia)}</span></div>` : ''}`;
   }
 
   function saldoModalBody({ entries, totals: t }) {

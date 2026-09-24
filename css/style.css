@@ -440,7 +440,8 @@ html.sidebar-collapsed .main{margin-left:76px;}
 .repasse-status.is-ok{color:#1e8a4c;}
 .repasse-status.is-over{color:var(--orange);}
 .repasse-list{display:flex;flex-direction:column;gap:8px;}
-.repasse-item{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;}
+.repasse-item{display:flex;flex-direction:column;gap:7px;}
+.repasse-item-main{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;}
 /* min-width:0 pra coluna 1fr poder encolher — sem isso a largura natural do campo de
    data empurra a lixeira pra fora do bloco. */
 .repasse-item input{
@@ -448,6 +449,21 @@ html.sidebar-collapsed .main{margin-left:76px;}
   background:var(--white);font-size:.82rem;min-width:0;
 }
 .repasse-block .btn{align-self:flex-start;}
+
+/* Link do comprovante — aparece abaixo de cada pagamento (parcela, à vista e repasses). */
+.comprovante{display:flex;align-items:center;gap:7px;}
+.comprovante > svg{color:var(--gray-500);flex-shrink:0;}
+.comprovante input{
+  flex:1;min-width:0;padding:7px 10px;border-radius:9px;border:1.5px solid var(--gray-100);
+  background:var(--white);font-size:.78rem;font-family:inherit;color:var(--ink);
+}
+.comprovante input::placeholder{color:var(--gray-500);}
+.comprovante-open{
+  flex-shrink:0;font-size:.74rem;font-weight:700;padding:6px 11px;border-radius:999px;
+  background:var(--gray-100);color:var(--gray-700);
+}
+.comprovante-open:hover{background:var(--lime);color:var(--onyx);}
+.parcela-pays .comprovante{grid-column:1 / -1;}
 
 /* Alternador "Porcentagem / Valor (R$)" da divisão. */
 .split-mode{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;}

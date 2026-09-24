@@ -75,6 +75,8 @@ Cada destinatário tem um bloco mostrando **quanto já recebeu do total que tem 
 
 - O total a receber sai da divisão do projeto (a % ou o valor em R$ definido no cadastro).
 - No **Financeiro**, o repasse conta no mês em que o pagamento foi feito — é quando o dinheiro saiu do caixa.
+**Comprovante:** cada pagamento (do cliente, ao dev e à agência) tem um campo para o **link do comprovante** — você guarda a foto/PDF no Google Drive, OneDrive ou Dropbox e cola o link aqui; quando o link é válido aparece um botão "Abrir" do lado. É link em vez de anexo porque o painel é estático (sem servidor para receber upload) e o localStorage tem 5–10 MB no total — dois ou três comprovantes já o estourariam. No modo server dá para trocar por upload de verdade.
+
 - Clientes cadastrados nas versões anteriores continuam valendo: as marcações antigas de "pago" viram lançamentos com a cota proporcional e a data que estava salva, sem perder nada.
 
 ## Financeiro da empresa

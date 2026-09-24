@@ -101,6 +101,33 @@ STORE.onReady(() => {
 
   const hoje = () => new Date().toISOString().slice(0, 10);
 
+  /* ===== Comprovante de pagamento =====
+     Guardamos o LINK do arquivo (Google Drive, OneDrive, Dropbox...), não o arquivo em si.
+     Anexar o arquivo exigiria servidor com upload — o painel hoje é estático. Quando o
+     link é válido (http/https), aparece o botão "Abrir" do lado. */
+  function comprovanteHTML(valor, rotulo) {
+    const link = STORE.safeUrl(valor);
+    return `
+      <div class="comprovante">
+        <svg class="icon-sm"><use href="#i-link"/></svg>
+        <input type="url" inputmode="url" data-field="comprovante" value="${STORE.esc(valor || '')}"
+               placeholder="Link do comprovante (opcional)" aria-label="${rotulo}">
+        <a class="comprovante-open" href="${STORE.esc(link)}" target="_blank" rel="noopener noreferrer"${link ? '' : ' hidden'}>Abrir</a>
+      </div>`;
+  }
+
+  /* Mostra/esconde o botão "Abrir" conforme o que está digitado. */
+  function bindComprovante(container) {
+    const input = container.querySelector('[data-field="comprovante"]');
+    const abrir = container.querySelector('.comprovante-open');
+    if (!input) return;
+    input.addEventListener('input', () => {
+      const link = STORE.safeUrl(input.value);
+      abrir.href = link;
+      abrir.hidden = !link;
+    });
+  }
+
   let parcelas = [];
 
   function renderParcelas() {
@@ -130,6 +157,7 @@ STORE.onReady(() => {
               <input type="date" data-field="pagoEm" value="${p.pagoEm || ''}" aria-label="Data do pagamento da parcela ${i + 1}">
             </label>
           </div>
+          ${comprovanteHTML(p.comprovante, `Comprovante da parcela ${i + 1}`)}
         </div>
       </div>`).join('');
 
@@ -163,6 +191,7 @@ STORE.onReady(() => {
         updateFinance();
         updateSubmitLabel();
       });
+      bindComprovante(row);
     });
   }
 
@@ -180,7 +209,7 @@ STORE.onReady(() => {
   tipoPagamento.addEventListener('change', () => { toggleParcelasVisibility(); updateFinance(); });
 
   addParcelaBtn.addEventListener('click', () => {
-    parcelas.push({ data: '', valor: '', pago: false, pagoEm: '' });
+    parcelas.push({ data: '', valor: '', pago: false, pagoEm: '', comprovante: '' });
     renderParcelas();
     updateFinance();
     updateSubmitLabel();
@@ -201,20 +230,24 @@ STORE.onReady(() => {
       ? '<p class="field-hint">Nenhum pagamento registrado ainda.</p>'
       : itens.map((r, i) => `
         <div class="repasse-item" data-index="${i}">
-          <input type="date" data-field="data" value="${r.data || ''}" aria-label="Data do pagamento à ${NOMES[quem]}">
-          <input type="text" inputmode="decimal" autocomplete="off" data-field="valor" value="${numberToMoneyString(r.valor)}" placeholder="Valor (R$)" aria-label="Valor pago à ${NOMES[quem]}">
-          <button type="button" class="icon-remove" data-remove aria-label="Remover pagamento"><svg class="icon-sm"><use href="#i-trash"/></svg></button>
+          <div class="repasse-item-main">
+            <input type="date" data-field="data" value="${r.data || ''}" aria-label="Data do pagamento à ${NOMES[quem]}">
+            <input type="text" inputmode="decimal" autocomplete="off" data-field="valor" value="${numberToMoneyString(r.valor)}" placeholder="Valor (R$)" aria-label="Valor pago à ${NOMES[quem]}">
+            <button type="button" class="icon-remove" data-remove aria-label="Remover pagamento"><svg class="icon-sm"><use href="#i-trash"/></svg></button>
+          </div>
+          ${comprovanteHTML(r.comprovante, `Comprovante do pagamento à ${NOMES[quem]}`)}
         </div>`).join('');
 
     lista.querySelectorAll('.repasse-item').forEach((row) => {
       const idx = parseInt(row.dataset.index, 10);
       row.querySelectorAll('[data-field]').forEach((input) => {
         input.addEventListener('input', () => {
-          if (input.dataset.field === 'valor') {
+          const campo = input.dataset.field;
+          if (campo === 'valor') {
             input.value = formatMoneyTyping(input.value);
             itens[idx].valor = moneyStringToNumber(input.value);
           } else {
-            itens[idx].data = input.value;
+            itens[idx][campo] = input.value;
           }
           updateRepasseResumo(quem);
           updateFinance();
@@ -227,6 +260,7 @@ STORE.onReady(() => {
         updateFinance();
         updateSubmitLabel();
       });
+      bindComprovante(row);
     });
     updateRepasseResumo(quem);
   }
@@ -263,7 +297,7 @@ STORE.onReady(() => {
          exatamente isso, e dá pra editar. */
       const draft = { ...splitFromForm(), repassesDev: repassesPorQuem.dev, repassesAgencia: repassesPorQuem.agencia };
       const falta = STORE.repasseResumo(draft, quem).falta;
-      repassesPorQuem[quem].push({ data: hoje(), valor: falta > 0 ? falta : 0 });
+      repassesPorQuem[quem].push({ data: hoje(), valor: falta > 0 ? falta : 0, comprovante: '' });
       renderRepasses(quem);
       updateFinance();
       updateSubmitLabel();
@@ -496,6 +530,7 @@ STORE.onReady(() => {
       form.devResponsavel.value = existing.devResponsavel || '';
       form.clientePago.checked = !!existing.clientePago;
       form.clientePagoEm.value = existing.clientePagoEm || '';
+      form.clienteComprovante.value = existing.clienteComprovante || '';
       form.tipoPagamento.value = existing.tipoPagamento || 'avista';
       form.dataInicio.value = existing.dataInicio || '';
       form.prazoFinal.value = existing.prazoFinal || '';
@@ -515,6 +550,7 @@ STORE.onReady(() => {
       deleteBtn.hidden = false;
     }
   }
+  bindComprovante(document.getElementById("clienteComprovanteWrap"));
   applySplitModo(splitModo);
   renderRepasses('dev');
   renderRepasses('agencia');
@@ -531,6 +567,7 @@ STORE.onReady(() => {
       empresa: form.empresa.value, nomeCliente: form.nomeCliente.value, telefone: form.telefone.value, valor: form.valor.value, tipoProjeto: form.tipoProjeto.value,
       origem: form.origem.value, devResponsavel: form.devResponsavel.value,
       clientePago: form.clientePago.checked, clientePagoEm: form.clientePagoEm.value,
+      clienteComprovante: form.clienteComprovante.value,
       repassesDev: repassesPorQuem.dev, repassesAgencia: repassesPorQuem.agencia,
       tipoPagamento: form.tipoPagamento.value, dataInicio: form.dataInicio.value, prazoFinal: form.prazoFinal.value,
       status: form.status.value, splitModo, splitAgencia: form.splitAgencia.value, splitEu: form.splitEu.value,
@@ -587,6 +624,7 @@ STORE.onReady(() => {
       devResponsavel: form.devResponsavel.value.trim(),
       clientePago: form.clientePago.checked,
       clientePagoEm: form.clientePago.checked ? form.clientePagoEm.value : '',
+      clienteComprovante: form.clienteComprovante.value.trim(),
       /* Lançamentos em branco (sem data e sem valor) não são salvos. */
       repassesDev: repassesPorQuem.dev.filter(r => r.data || r.valor > 0),
       repassesAgencia: repassesPorQuem.agencia.filter(r => r.data || r.valor > 0),
