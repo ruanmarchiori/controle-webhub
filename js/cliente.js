@@ -265,25 +265,46 @@ STORE.onReady(() => {
     updateRepasseResumo(quem);
   }
 
+  /* "Cliente de mentira" com tudo que o resumo precisa: a divisão, os repasses lançados
+     e TAMBÉM o que o cliente já pagou (parcelas / à vista) — sem isso o "devido até agora"
+     daria sempre zero e o bloco diria "em dia" mesmo devendo. */
+  function repasseDraft() {
+    return {
+      ...splitFromForm(),
+      tipoPagamento: tipoPagamento.value,
+      clientePago: form.clientePago.checked,
+      parcelas: tipoPagamento.value === 'parcelado' ? parcelas : [],
+      repassesDev: repassesPorQuem.dev,
+      repassesAgencia: repassesPorQuem.agencia
+    };
+  }
+
   function updateRepasseResumo(quem) {
     const cap = quem === 'dev' ? 'Dev' : 'Agencia';
-    const draft = { ...splitFromForm(), repassesDev: repassesPorQuem.dev, repassesAgencia: repassesPorQuem.agencia };
+    const draft = repasseDraft();
     const r = STORE.repasseResumo(draft, quem);
 
     document.getElementById(`repasse${cap}Pago`).textContent = STORE.formatBRL(r.pago);
     document.getElementById(`repasse${cap}Total`).textContent = `de ${STORE.formatBRL(r.total)}`;
     document.getElementById(`repasse${cap}Fill`).style.width = `${r.pctPago * 100}%`;
 
+    /* O que importa no dia a dia é quanto já VENCEU: a parte do que o cliente pagou.
+       O resto só é devido quando o cliente pagar as parcelas que faltam. */
     const status = document.getElementById(`repasse${cap}Status`);
     if (r.total <= 0) {
       status.textContent = 'Defina o valor do projeto e a divisão para ver quanto pagar.';
       status.className = 'repasse-status';
-    } else if (r.falta > 0) {
-      status.textContent = `Falta pagar ${STORE.formatBRL(r.falta)}`;
+    } else if (r.faltaAgora > 0) {
+      const resto = r.falta - r.faltaAgora;
+      status.textContent = `Falta repassar ${STORE.formatBRL(r.faltaAgora)} do que o cliente já pagou`
+        + (resto > 0.009 ? ` · ${STORE.formatBRL(resto)} quando ele pagar o resto` : '');
       status.className = 'repasse-status is-pending';
     } else if (r.falta < 0) {
       status.textContent = `Pago ${STORE.formatBRL(-r.falta)} a mais que o combinado`;
       status.className = 'repasse-status is-over';
+    } else if (r.falta > 0) {
+      status.textContent = `Em dia com o recebido · ${STORE.formatBRL(r.falta)} quando o cliente pagar o resto`;
+      status.className = 'repasse-status is-ok';
     } else {
       status.textContent = 'Tudo pago ✓';
       status.className = 'repasse-status is-ok';
@@ -295,8 +316,8 @@ STORE.onReady(() => {
       const quem = btn.dataset.addRepasse;
       /* Já vem com a data de hoje e o valor que ainda falta — na maioria das vezes é
          exatamente isso, e dá pra editar. */
-      const draft = { ...splitFromForm(), repassesDev: repassesPorQuem.dev, repassesAgencia: repassesPorQuem.agencia };
-      const falta = STORE.repasseResumo(draft, quem).falta;
+      const draft = repasseDraft();
+      const falta = STORE.repasseResumo(draft, quem).faltaAgora;
       repassesPorQuem[quem].push({ data: hoje(), valor: falta > 0 ? falta : 0, comprovante: '' });
       renderRepasses(quem);
       updateFinance();
@@ -452,6 +473,11 @@ STORE.onReady(() => {
     const saldoEl = document.getElementById('financeSaldo');
     saldoEl.textContent = STORE.formatBRL(f.meuSaldo);
     saldoEl.className = 'finance-row-value' + (f.meuSaldo < 0 ? ' is-negative' : '');
+ 
+    /* Marcar uma parcela como paga muda o quanto já é devido ao dev/agência — as barras
+       de repasse precisam acompanhar. */
+    updateRepasseResumo('dev');
+    updateRepasseResumo('agencia');
   }
   /* À vista: marcar como pago preenche a data com hoje (dá pra trocar); desmarcar limpa. */
   form.clientePago.addEventListener('change', () => {

@@ -390,11 +390,17 @@ const STORE = (function () {
     const total = quem === 'dev' ? split.dev : split.agencia;
     const pago = repasses(client)[quem === 'dev' ? 'dev' : 'agencia'];
     const falta = total - pago;
+    /* Quanto disso já é devido AGORA: a cota sobre o que o cliente pagou até aqui. */
+    const devido = valorRecebido(client) * splitPercents(client)[quem === 'dev' ? 'dev' : 'agencia'];
+    const faltaAgora = devido - pago;
+    const zerar = (n) => (Math.abs(n) < 0.01 ? 0 : n);
     return {
       total,
       pago,
+      devido,
       /* Menos de um centavo de diferença é arredondamento, não dívida. */
-      falta: Math.abs(falta) < 0.01 ? 0 : falta,
+      falta: zerar(falta),
+      faltaAgora: Math.max(0, zerar(faltaAgora)),
       pctPago: total > 0 ? Math.min(1, pago / total) : 0,
       entries: repasseEntries(client, quem)
     };
@@ -425,12 +431,20 @@ const STORE = (function () {
       valorTotal,
       recebido,
       pendenteReceber: valorTotal - recebido,
+      /* devValor/agenciaValor = cota do projeto INTEIRO (o quanto vão receber no fim). */
       devValor: split.dev,
       devRepassado,
-      devPendente: split.dev - devRepassado,
+      /* devDevido/agenciaDevido = o que já "venceu" pra eles: a cota sobre o que o cliente
+         de fato pagou. É essa a dívida real do momento — não se deve ao dev a parte de um
+         dinheiro que ainda não entrou. O "pendente" sai daí. */
+      devDevido: recebido * splitPercents(client).dev,
+      devPendente: Math.max(0, recebido * splitPercents(client).dev - devRepassado),
+      devPendenteProjeto: Math.max(0, split.dev - devRepassado),
       agenciaValor: split.agencia,
       agenciaRepassada,
-      agenciaPendente: split.agencia - agenciaRepassada,
+      agenciaDevido: recebido * splitPercents(client).agencia,
+      agenciaPendente: Math.max(0, recebido * splitPercents(client).agencia - agenciaRepassada),
+      agenciaPendenteProjeto: Math.max(0, split.agencia - agenciaRepassada),
       euValor: split.eu,
       /* A minha parte é sempre a minha % do que já foi recebido do cliente — não depende
          de eu já ter repassado ou não a cota do dev/agência. Antes isso ficava
