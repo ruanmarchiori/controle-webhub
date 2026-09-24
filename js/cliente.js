@@ -128,15 +128,6 @@ STORE.onReady(() => {
     });
   }
 
-  /* Explica, em reais, o efeito da "% só minha" — parcela que corre por outro sistema e
-     da qual só a comissão entra neste painel, sem divisão com dev/agência. */
-  function comissaoTexto(p) {
-    const pct = STORE.comissaoDaParcela(p);
-    if (!pct) return 'Em branco = parcela normal, dividida com dev e agência.';
-    const valor = moneyStringToNumber(numberToMoneyString(p.valor)) || parseFloat(p.valor) || 0;
-    return `Só ${STORE.formatBRL(valor * pct)} entram no painel, tudo seu — sem dev nem agência.`;
-  }
-
   let parcelas = [];
 
   function renderParcelas() {
@@ -166,15 +157,6 @@ STORE.onReady(() => {
               <input type="date" data-field="pagoEm" value="${p.pagoEm || ''}" aria-label="Data do pagamento da parcela ${i + 1}">
             </label>
           </div>
-          <div class="pay-row comissao-row">
-            <label class="pay-date">
-              <span>Só minha comissão</span>
-              <input type="number" min="0" max="100" step="0.01" data-field="comissaoPct"
-                     value="${p.comissaoPct ?? ''}" placeholder="—" aria-label="Porcentagem que é só sua nesta parcela ${i + 1}">
-              <span>%</span>
-            </label>
-            <span class="field-hint">${comissaoTexto(p)}</span>
-          </div>
           ${comprovanteHTML(p.comprovante, `Comprovante da parcela ${i + 1}`)}
         </div>
       </div>`).join('');
@@ -199,12 +181,6 @@ STORE.onReady(() => {
             parcelas[idx][field] = moneyStringToNumber(input.value);
           } else {
             parcelas[idx][field] = input.value;
-          }
-          /* A "% só minha" e o valor mudam a base dividida com dev/agência — a divisão
-             inteira precisa ser recalculada, não só o painel financeiro. */
-          if (field === 'comissaoPct' || field === 'valor') {
-            row.querySelector('.comissao-row .field-hint').textContent = comissaoTexto(parcelas[idx]);
-            updateSplitTotal();
           }
           updateFinance();
         });
@@ -233,7 +209,7 @@ STORE.onReady(() => {
   tipoPagamento.addEventListener('change', () => { toggleParcelasVisibility(); updateFinance(); });
 
   addParcelaBtn.addEventListener('click', () => {
-    parcelas.push({ data: '', valor: '', pago: false, pagoEm: '', comprovante: '', comissaoPct: '' });
+    parcelas.push({ data: '', valor: '', pago: false, pagoEm: '', comprovante: '' });
     renderParcelas();
     updateFinance();
     updateSubmitLabel();
@@ -363,10 +339,6 @@ STORE.onReady(() => {
   function splitFromForm() {
     return {
       valor: moneyStringToNumber(form.valor.value),
-      /* tipoPagamento/parcelas entram porque a base dividida com dev/agência desconta as
-         parcelas marcadas com "% só minha" (veja STORE.valorDivisivel). */
-      tipoPagamento: tipoPagamento.value,
-      parcelas: tipoPagamento.value === 'parcelado' ? parcelas : [],
       splitModo,
       splitAgencia: parseFloat(form.splitAgencia.value) || 0,
       splitEu: parseFloat(form.splitEu.value) || 0,
@@ -385,23 +357,12 @@ STORE.onReady(() => {
       form['split' + key + 'Valor'].hidden = !isPorValor();
       document.getElementById('label' + key).textContent = `${label} (${isPorValor() ? 'R$' : '%'})`;
     });
-    atualizaDicaDivisao();
+    splitModeHint.textContent = isPorValor()
+      ? 'A soma dos três precisa dar o valor do projeto.'
+      : 'A soma das porcentagens precisa dar 100%.';
     updateSplitTotal();
     updateFinance();
   }
-  /* A dica embaixo do alternador avisa quando a base da divisão é menor que o valor do
-     projeto (porque alguma parcela é de comissão). */
-  function atualizaDicaDivisao() {
-    const draft = splitFromForm();
-    const base = STORE.valorDivisivel(draft);
-    const extra = STORE.temComissao(draft)
-      ? ` Vale sobre ${STORE.formatBRL(base)} — o resto está em parcela de comissão.`
-      : '';
-    splitModeHint.textContent = (isPorValor()
-      ? 'A soma dos três precisa dar o valor a dividir.'
-      : 'A soma das porcentagens precisa dar 100%.') + extra;
-  }
-
   splitModeBtns.forEach(btn => btn.addEventListener('click', () => {
     if (btn.dataset.modo === splitModo) return;
     const valor = moneyStringToNumber(form.valor.value);
@@ -435,11 +396,8 @@ STORE.onReady(() => {
   function updateSplitTotal() {
     updateRepasseResumo('dev');
     updateRepasseResumo('agencia');
-    atualizaDicaDivisao();
     const draft = splitFromForm();
-    /* A divisão vale sobre o valor do projeto MENOS as parcelas de comissão. */
-    const valor = STORE.valorDivisivel(draft);
-    const temComissao = STORE.temComissao(draft);
+    const valor = draft.valor;
     const parts = STORE.splitValues(draft);
     const pct = STORE.splitPercents(draft);
     const fmtPct = (n) => `${(Math.round(n * 10000) / 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
@@ -456,8 +414,8 @@ STORE.onReady(() => {
       const soma = parts.agencia + parts.eu + parts.dev;
       /* Centavos: compara com tolerância pra não acusar erro por arredondamento. */
       ok = Math.abs(soma - valor) < 0.01 && soma > 0;
-      texto = `Soma: ${STORE.formatBRL(soma)} de ${STORE.formatBRL(valor)}` + (temComissao ? ' a dividir' : '');
-      useSplitSumBtn.hidden = ok || soma <= 0 || temComissao;
+      texto = `Soma: ${STORE.formatBRL(soma)} de ${STORE.formatBRL(valor)}`;
+      useSplitSumBtn.hidden = ok || soma <= 0;
       useSplitSumBtn.textContent = `Usar ${STORE.formatBRL(soma)} como valor do projeto`;
     } else {
       const soma = draft.splitAgencia + draft.splitEu + draft.splitDev;
@@ -661,9 +619,8 @@ STORE.onReady(() => {
     const parts = STORE.splitValues(draft);
     const somaValores = parts.agencia + parts.eu + parts.dev;
 
-    const baseDivisao = STORE.valorDivisivel(draft);
-    if (isPorValor() && Math.abs(somaValores - baseDivisao) >= 0.01) {
-      msgEl.textContent = `A soma dos valores (${quem}) precisa dar exatamente o valor a dividir — hoje dá ${STORE.formatBRL(somaValores)} de ${STORE.formatBRL(baseDivisao)}.`;
+    if (isPorValor() && Math.abs(somaValores - draft.valor) >= 0.01) {
+      msgEl.textContent = `A soma dos valores (${quem}) precisa dar exatamente o valor do projeto — hoje dá ${STORE.formatBRL(somaValores)} de ${STORE.formatBRL(draft.valor)}.`;
       msgEl.style.color = '#ef5b5b';
       splitTotalEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;

@@ -464,10 +464,6 @@ html.sidebar-collapsed .main{margin-left:76px;}
 }
 .comprovante-open:hover{background:var(--lime);color:var(--onyx);}
 .parcela-pays .comprovante{grid-column:1 / -1;}
-/* Linha da "% só minha": parcela que corre por outro sistema. */
-.parcela-pays .comissao-row{grid-column:1 / -1;align-items:baseline;}
-.comissao-row input{width:64px;text-align:right;}
-.comissao-row .field-hint{flex:1 1 220px;}
 
 /* Alternador "Porcentagem / Valor (R$)" da divisão. */
 .split-mode{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
