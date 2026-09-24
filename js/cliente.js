@@ -288,13 +288,10 @@ STORE.onReady(() => {
     document.getElementById(`repasse${cap}Total`).textContent = `de ${STORE.formatBRL(r.total)}`;
     document.getElementById(`repasse${cap}Fill`).style.width = `${r.pctPago * 100}%`;
 
-    /* O que importa no dia a dia é quanto já VENCEU — e isso é diferente para cada um:
-       o dev só é pago quando o cliente quita o projeto; a agência vai vencendo junto com
-       os pagamentos do cliente (acerto no fechamento do mês). */
+    /* O que importa no dia a dia é quanto já VENCEU: nada até o cliente quitar o projeto —
+       dev e agência são pagos quando entra a última parcela. */
     const status = document.getElementById(`repasse${cap}Status`);
-    const aindaNao = quem === 'dev'
-      ? 'Vence quando o cliente quitar o projeto'
-      : 'Vence junto com os pagamentos do cliente';
+    const aindaNao = 'Vence quando o cliente quitar o projeto';
 
     if (r.total <= 0) {
       status.textContent = 'Defina o valor do projeto e a divisão para ver quanto pagar.';

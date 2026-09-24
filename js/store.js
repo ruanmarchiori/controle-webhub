@@ -390,12 +390,9 @@ const STORE = (function () {
     const total = quem === 'dev' ? split.dev : split.agencia;
     const pago = repasses(client)[quem === 'dev' ? 'dev' : 'agencia'];
     const falta = total - pago;
-    /* Quanto disso já venceu: o dev só é pago no fim (quando o cliente quita o projeto);
-       a agência vai vencendo junto com o que o cliente paga, porque é acertada no
-       fechamento do mês. */
-    const devido = quem === 'dev'
-      ? (clienteQuitou(client) ? total : 0)
-      : valorRecebido(client) * splitPercents(client).agencia;
+    /* Quanto disso já venceu: nada até o cliente quitar o projeto — os dois (dev e
+       agência) são pagos quando entra a última parcela. */
+    const devido = clienteQuitou(client) ? total : 0;
     const faltaAgora = devido - pago;
     const zerar = (n) => (Math.abs(n) < 0.01 ? 0 : n);
     return {
@@ -452,18 +449,17 @@ const STORE = (function () {
       /* devValor/agenciaValor = cota do projeto INTEIRO (o quanto vão receber no fim). */
       devValor: split.dev,
       devRepassado,
-      /* O DEV é pago no fim do projeto: a cota dele só vira dívida quando o cliente quita.
-         Antes disso não há nada "a repassar" (o que não impede lançar um adiantamento). */
+      /* Dev e agência são pagos no FIM do projeto: a cota dos dois só vira dívida quando o
+         cliente paga a última parcela. Antes disso não há nada "a repassar" — o que não
+         impede lançar um adiantamento, que abate normalmente do total. */
       quitado,
       devDevido: quitado ? split.dev : 0,
       devPendente: quitado ? Math.max(0, split.dev - devRepassado) : 0,
       devPendenteProjeto: Math.max(0, split.dev - devRepassado),
       agenciaValor: split.agencia,
       agenciaRepassada,
-      /* A AGÊNCIA é acertada no fechamento do mês, sobre o que entrou — então a cota dela
-         vai vencendo junto com os pagamentos do cliente. */
-      agenciaDevido: recebido * splitPercents(client).agencia,
-      agenciaPendente: Math.max(0, recebido * splitPercents(client).agencia - agenciaRepassada),
+      agenciaDevido: quitado ? split.agencia : 0,
+      agenciaPendente: quitado ? Math.max(0, split.agencia - agenciaRepassada) : 0,
       agenciaPendenteProjeto: Math.max(0, split.agencia - agenciaRepassada),
       euValor: split.eu,
       /* A minha parte é sempre a minha % do que já foi recebido do cliente — não depende

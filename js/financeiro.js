@@ -221,7 +221,7 @@ STORE.onReady(() => {
     if (!entries.length) return emptyMsg;
     const rows = entries.map(({ c, f }) => `
         <div class="modal-row">
-          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).agenciaRepassada, STORE.financeiro(c).agenciaPendente)} • ${STORE.formatBRL(STORE.financeiro(c).agenciaDevido)} devidos até agora</span></div>
+          <div class="modal-row-info"><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span>${statusRepasse(STORE.financeiro(c).agenciaRepassada, STORE.financeiro(c).agenciaPendente)} • ${STORE.financeiro(c).quitado ? STORE.formatBRL(STORE.financeiro(c).agenciaValor) + ' devidos (cliente quitou)' : 'o cliente ainda não quitou'}</span></div>
           <div class="modal-row-value">${STORE.formatBRL(f.agenciaRepassada)}</div>
         </div>`).join('');
     return `
