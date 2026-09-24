@@ -390,6 +390,13 @@ html.sidebar-collapsed .main{margin-left:76px;}
 .split-total.is-bad{background:#fdecec;color:var(--red);}
 
 .parcelas-list{display:flex;flex-direction:column;gap:12px;}
+/* Aviso de que as parcelas fecham (ou não) o valor do projeto. */
+.parcelas-soma{
+  margin-top:10px;padding:10px 14px;border-radius:10px;
+  font-size:.78rem;font-weight:600;line-height:1.35;
+}
+.parcelas-soma.is-ok{background:#e4f9ea;color:#1e8a4c;}
+.parcelas-soma.is-bad{background:#fdecec;color:#b3261e;}
 .parcela-row{
   display:flex;flex-direction:column;gap:10px;
   background:var(--gray-50);padding:12px;border-radius:12px;

@@ -425,7 +425,13 @@ const STORE = (function () {
   function clienteQuitou(client) {
     if (client.tipoPagamento === 'parcelado') {
       const parcelas = client.parcelas || [];
-      return parcelas.length > 0 && parcelas.every(p => p.pago);
+      if (!parcelas.length || !parcelas.some(p => p.pago)) return false;
+      /* Não basta as parcelas cadastradas estarem todas pagas: elas podem não cobrir o
+         valor do projeto (parcela futura ainda não cadastrada, entrada lançada por fora).
+         Quitado é quando o que entrou alcança o valor combinado — a tolerância de um
+         centavo é só pra arredondamento. */
+      const total = parseFloat(client.valor) || 0;
+      return valorRecebido(client) >= total - 0.01;
     }
     return !!client.clientePago;
   }

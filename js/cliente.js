@@ -128,6 +128,32 @@ STORE.onReady(() => {
     });
   }
 
+  /* As parcelas precisam somar o valor do projeto — senão o cliente nunca "quita" e o
+     repasse ao dev/agência nunca vence. O aviso deixa isso visível na hora do cadastro. */
+  function atualizaSomaParcelas() {
+    const box = document.getElementById('parcelasSoma');
+    if (tipoPagamento.value !== 'parcelado' || !parcelas.length) {
+      box.hidden = true;
+      return;
+    }
+    const soma = parcelas.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0);
+    const total = moneyStringToNumber(form.valor.value);
+    const diferenca = total - soma;
+    box.hidden = false;
+    if (Math.abs(diferenca) < 0.01) {
+      box.className = 'parcelas-soma is-ok';
+      box.textContent = `As parcelas somam ${STORE.formatBRL(soma)} — fecham o valor do projeto.`;
+    } else if (diferenca > 0) {
+      box.className = 'parcelas-soma is-bad';
+      box.textContent = `As parcelas somam ${STORE.formatBRL(soma)} de ${STORE.formatBRL(total)}`
+        + ` — faltam ${STORE.formatBRL(diferenca)}. Enquanto não fecharem, o cliente não conta como quitado`
+        + ' e o repasse ao dev/agência não vence.';
+    } else {
+      box.className = 'parcelas-soma is-bad';
+      box.textContent = `As parcelas somam ${STORE.formatBRL(soma)}, ${STORE.formatBRL(-diferenca)} a mais que o valor do projeto.`;
+    }
+  }
+
   let parcelas = [];
 
   function renderParcelas() {
@@ -199,6 +225,7 @@ STORE.onReady(() => {
     const show = tipoPagamento.value === 'parcelado';
     parcelasTitle.hidden = !show;
     parcelasList.hidden = !show;
+    atualizaSomaParcelas();
     /* No parcelado, TODAS as marcações de pagamento (cliente, dev e agência) ficam em cada
        parcela, com a data de cada repasse — a seção "Situação de pagamento" só vale para o
        projeto à vista, que não tem parcela com data própria. */
@@ -480,6 +507,7 @@ STORE.onReady(() => {
        de repasse precisam acompanhar. */
     updateRepasseResumo('dev');
     updateRepasseResumo('agencia');
+    atualizaSomaParcelas();
   }
   /* À vista: marcar como pago preenche a data com hoje (dá pra trocar); desmarcar limpa. */
   form.clientePago.addEventListener('change', () => {
