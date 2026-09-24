@@ -74,6 +74,38 @@ STORE.onReady(() => {
     return acc;
   }, { dev: 0, agencia: 0 });
 
+  /* A cota combinada de TODOS os projetos e a parte dela que ainda não venceu (projeto que
+     o cliente não quitou). Serve pra fechar a conta no detalhamento:
+        cota total = já repassado + a repassar (vencido) + aguardando quitação
+     Sem isso, somar o "Agência recebe" de cada cliente dá um número maior que o "a
+     repassar" do card, e não fica claro de onde vem a diferença. */
+  const cotaTotal = { dev: 0, agencia: 0 };
+  const aguardando = { dev: 0, agencia: 0 };
+  const jaRepassado = { dev: 0, agencia: 0 };
+  clients.forEach((c) => {
+    const f = STORE.financeiro(c);
+    const s = STORE.splitValues(c);
+    cotaTotal.dev += s.dev;
+    cotaTotal.agencia += s.agencia;
+    jaRepassado.dev += f.devRepassado;
+    jaRepassado.agencia += f.agenciaRepassada;
+    if (!f.quitado) {
+      aguardando.dev += Math.max(0, s.dev - f.devRepassado);
+      aguardando.agencia += Math.max(0, s.agencia - f.agenciaRepassada);
+    }
+  });
+
+  /* Rodapé comum dos detalhamentos de repasse: mostra a conta fechando. */
+  function rodapeRepasse(quem, repassadoNoEscopo) {
+    const linha = (rotulo, valor, destaque) => valor > 0.009
+      ? `<div class="modal-total-row${destaque ? ' is-strong' : ''}"><span>${rotulo}</span><span>${STORE.formatBRL(valor)}</span></div>`
+      : '';
+    return linha(scopeMode === 'mensal' ? 'Repassado no mês' : 'Total já repassado', repassadoNoEscopo)
+      + linha('A repassar agora (cliente já quitou)', aRepassar[quem], true)
+      + linha('Aguardando o cliente quitar', aguardando[quem])
+      + linha('Cota total de todos os projetos', cotaTotal[quem]);
+  }
+
   function renderTopStats() {
     const { totals: t } = currentTopScope();
 
@@ -213,8 +245,7 @@ STORE.onReady(() => {
           </div>`).join('');
         return `<div class="modal-group"><div class="modal-group-title">${STORE.esc(name)} — ${STORE.formatBRL(g.repassado)}${g.pendente > 0 ? ` (${STORE.formatBRL(g.pendente)} pendente)` : ''}</div>${rows}</div>`;
       }).join('');
-    return groupsHTML + `<div class="modal-total-row"><span>Total repassado</span><span>${STORE.formatBRL(t.totalDevRepassado)}</span></div>
-      ${aRepassar.dev > 0 ? `<div class="modal-total-row"><span>A repassar (já vencido)</span><span>${STORE.formatBRL(aRepassar.dev)}</span></div>` : ''}`;
+    return groupsHTML + rodapeRepasse('dev', t.totalDevRepassado);
   }
 
   function agenciaModalBody({ entries, totals: t }) {
@@ -226,8 +257,7 @@ STORE.onReady(() => {
         </div>`).join('');
     return `
       <div class="modal-group">${rows}</div>
-      <div class="modal-total-row"><span>Total repassado</span><span>${STORE.formatBRL(t.totalAgenciaRepassada)}</span></div>
-      ${aRepassar.agencia > 0 ? `<div class="modal-total-row"><span>A repassar (já vencido)</span><span>${STORE.formatBRL(aRepassar.agencia)}</span></div>` : ''}`;
+      ${rodapeRepasse('agencia', t.totalAgenciaRepassada)}`;
   }
 
   function saldoModalBody({ entries, totals: t }) {

@@ -674,7 +674,10 @@ html.sidebar-collapsed .main{margin-left:76px;}
 .modal-total-row{
   display:flex;align-items:center;justify-content:space-between;font-weight:700;
   padding:10px 12px;background:var(--gray-50);border-radius:10px;margin-top:6px;
+  gap:12px;
 }
+/* Destaca a linha que é a resposta do card (o que falta repassar agora). */
+.modal-total-row.is-strong{background:#fdecec;color:#b3261e;}
 
 /* ================= Carregamento dos dados (servidor) ================= */
 /* Enquanto o STORE busca clientes/configurações na API, o conteúdo fica esmaecido. */
