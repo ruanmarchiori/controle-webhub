@@ -296,8 +296,40 @@ const STORE = (function () {
     return client.splitModo === 'valor';
   }
 
+  /* ===== Parcela de comissão ("% só minha") =====
+     Alguns projetos têm uma parcela que corre por FORA deste painel (fica em outro
+     sistema) e da qual você recebe só uma comissão — sem dev e sem agência. Marcando a
+     parcela com uma porcentagem, o painel passa a considerar dela apenas essa fatia, toda
+     sua, e o valor cheio dela sai da base dividida com dev/agência.
+     Parcela sem a marcação = comportamento normal de sempre. */
+  function comissaoDaParcela(p) {
+    const pct = parseFloat(p && p.comissaoPct);
+    return Number.isFinite(pct) && pct > 0 ? Math.min(100, pct) / 100 : 0;
+  }
+
+  function temComissao(client) {
+    return (client.parcelas || []).some(p => comissaoDaParcela(p) > 0);
+  }
+
+  /* O que a parcela de fato representa neste painel: só a comissão, se marcada. */
+  function valorEfetivoParcela(p) {
+    const valor = parseFloat(p.valor) || 0;
+    const pct = comissaoDaParcela(p);
+    return pct ? valor * pct : valor;
+  }
+
+  /* Valor do projeto que é dividido com dev/agência — desconta as parcelas de comissão. */
+  function valorDivisivel(client) {
+    const total = parseFloat(client.valor) || 0;
+    if (client.tipoPagamento !== 'parcelado') return total;
+    const fora = (client.parcelas || [])
+      .filter(p => comissaoDaParcela(p) > 0)
+      .reduce((s, p) => s + (parseFloat(p.valor) || 0), 0);
+    return Math.max(0, total - fora);
+  }
+
   function splitValues(client) {
-    const valor = parseFloat(client.valor) || 0;
+    const valor = valorDivisivel(client);
     if (isSplitPorValor(client)) {
       return {
         agencia: parseFloat(client.splitAgenciaValor) || 0,
@@ -412,10 +444,29 @@ const STORE = (function () {
      À vista: tudo ou nada, pelo check "Cliente já pagou". Parcelado: soma só as parcelas
      marcadas como pagas (pode ser parcial). */
   function valorRecebido(client) {
+    const r = recebidoDetalhado(client);
+    return r.divisivel + r.comissao;
+  }
+
+  /* Separa o que entrou em duas partes, porque elas têm destinos diferentes:
+     - divisivel: parcelas normais, repartidas entre agência/eu/dev;
+     - comissao: a fatia das parcelas de comissão, que é 100% sua.
+     `period` (opcional) limita ao mês de vencimento da parcela. */
+  function recebidoDetalhado(client, period) {
     if (client.tipoPagamento === 'parcelado') {
-      return (client.parcelas || []).reduce((sum, p) => sum + (p.pago ? (parseFloat(p.valor) || 0) : 0), 0);
+      return (client.parcelas || []).reduce((acc, p) => {
+        if (!p.pago) return acc;
+        if (period && (p.data || '').slice(0, 7) !== period) return acc;
+        const valor = parseFloat(p.valor) || 0;
+        const pct = comissaoDaParcela(p);
+        if (pct) acc.comissao += valor * pct;
+        else acc.divisivel += valor;
+        return acc;
+      }, { divisivel: 0, comissao: 0 });
     }
-    return client.clientePago ? (parseFloat(client.valor) || 0) : 0;
+    const noMes = !period || (client.dataInicio || client.createdAt || '').slice(0, 7) === period;
+    const valor = (client.clientePago && noMes) ? (parseFloat(client.valor) || 0) : 0;
+    return { divisivel: valor, comissao: 0 };
   }
 
   /* O cliente quitou o projeto? É o gatilho do pagamento ao dev: o dev só é pago no fim,
@@ -434,9 +485,14 @@ const STORE = (function () {
      dev/agência) e quanto sobra de fato "no banco" pra mim — diferente do splitValues, que
      é só a divisão combinada, sem olhar se alguém pagou alguma coisa ainda. */
   function financeiro(client) {
-    const valorTotal = parseFloat(client.valor) || 0;
+    /* Só a parte que é de fato deste painel entra como "valor do projeto": de uma parcela
+       de comissão conta apenas a comissão, não o valor cheio (o resto é de outro sistema). */
+    const valorTotal = client.tipoPagamento === 'parcelado'
+      ? (client.parcelas || []).reduce((s, p) => s + valorEfetivoParcela(p), 0)
+      : (parseFloat(client.valor) || 0);
     const split = splitValues(client);
-    const recebido = valorRecebido(client);
+    const entrou = recebidoDetalhado(client);
+    const recebido = entrou.divisivel + entrou.comissao;
     const pago = repasses(client);
     const quitado = clienteQuitou(client);
     const devRepassado = pago.dev;
@@ -462,12 +518,14 @@ const STORE = (function () {
       agenciaPendente: quitado ? Math.max(0, split.agencia - agenciaRepassada) : 0,
       agenciaPendenteProjeto: Math.max(0, split.agencia - agenciaRepassada),
       euValor: split.eu,
+      comissao: entrou.comissao,
       /* A minha parte é sempre a minha % do que já foi recebido do cliente — não depende
          de eu já ter repassado ou não a cota do dev/agência. Antes isso ficava
          "recebido - devRepassado - agenciaRepassada", então até eu marcar os checks de
          pago, o dinheiro que era do dev/agência aparecia como se fosse meu (inflando o
-         saldo). Repassei pra fazer sentido: minha % é minha independente disso. */
-      meuSaldo: recebido * euPct
+         saldo). Repassei pra fazer sentido: minha % é minha independente disso.
+         A comissão de parcela de outro sistema entra inteira aqui: não é dividida. */
+      meuSaldo: entrou.divisivel * euPct + entrou.comissao
     };
   }
 
@@ -479,27 +537,31 @@ const STORE = (function () {
      As porcentagens de cada cliente (agência/eu/dev) e os checks de pago continuam
      valendo do jeito de sempre, só aplicados em cima do valor daquele mês específico. */
   function financeiroPorMes(client, period) {
-    let valorTotal = 0, recebido = 0, pendenteReceber = 0;
+    let valorTotal = 0, pendenteReceber = 0;
+    /* Da parcela de comissão conta só a comissão (o resto é de outro sistema) e ela não
+       entra na parte dividida com dev/agência. */
+    const entrou = recebidoDetalhado(client, period);
 
     if (client.tipoPagamento === 'parcelado') {
       (client.parcelas || []).forEach((p) => {
         if ((p.data || '').slice(0, 7) !== period) return;
-        const v = parseFloat(p.valor) || 0;
+        const v = valorEfetivoParcela(p);
         valorTotal += v;
-        if (p.pago) recebido += v; else pendenteReceber += v;
+        if (!p.pago) pendenteReceber += v;
       });
     } else {
       const closingMonth = (client.dataInicio || client.createdAt || '').slice(0, 7);
       if (closingMonth === period) {
         valorTotal = parseFloat(client.valor) || 0;
-        if (client.clientePago) recebido = valorTotal; else pendenteReceber = valorTotal;
+        if (!client.clientePago) pendenteReceber = valorTotal;
       }
     }
 
+    const recebido = entrou.divisivel + entrou.comissao;
     const pct = splitPercents(client);
     const euPct = pct.eu;
-    const devValor = recebido * pct.dev;
-    const agenciaValor = recebido * pct.agencia;
+    const devValor = entrou.divisivel * pct.dev;
+    const agenciaValor = entrou.divisivel * pct.agencia;
     /* Repasse conta no mês em que o pagamento foi FEITO (a data do lançamento) — é quando
        o dinheiro saiu do caixa. Como o dev pode ser pago adiantado, o repasse de um mês
        pode ser maior que a cota do que entrou naquele mesmo mês; por isso o "pendente do
@@ -518,8 +580,9 @@ const STORE = (function () {
       agenciaValor,
       agenciaRepassada,
       agenciaPendente: Math.max(0, agenciaValor - agenciaRepassada),
-      euValor: recebido * euPct,
-      meuSaldo: recebido * euPct
+      euValor: entrou.divisivel * euPct + entrou.comissao,
+      comissao: entrou.comissao,
+      meuSaldo: entrou.divisivel * euPct + entrou.comissao
     };
   }
 
@@ -669,6 +732,7 @@ const STORE = (function () {
     onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
     splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo, clienteQuitou,
+    valorDivisivel, comissaoDaParcela, temComissao,
     valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, whatsappLink, safeUrl, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,
