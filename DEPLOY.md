@@ -1,4 +1,4 @@
-# Colocar o Controle WebHub no ar
+# Colocar o Controle Financeiro WebHub no ar
 
 Há duas opções. O código é o mesmo — muda só o `mode` em `js/config.js`.
 

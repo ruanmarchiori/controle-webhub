@@ -1,4 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="18" fill="#d7fb3d"/>
-  <text x="32" y="43" text-anchor="middle" font-family="Outfit, 'Segoe UI', Arial, sans-serif" font-weight="800" font-size="29" letter-spacing="-1" fill="#15161a">CW</text>
+  <title>Controle Financeiro WebHub</title>
+  <rect width="64" height="64" rx="16" fill="#d7fb3d"/>
+  <g fill="#15161a">
+    <rect x="13" y="39" width="9" height="12" rx="2.5"/>
+    <rect x="27.5" y="33" width="9" height="18" rx="2.5"/>
+    <rect x="42" y="27" width="9" height="24" rx="2.5"/>
+  </g>
+  <path d="M12 30l12-8 9 4 16-13M41 13h8v8" fill="none" stroke="#15161a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

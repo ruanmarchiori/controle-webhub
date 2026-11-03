@@ -205,7 +205,7 @@ STORE.onReady(() => {
     doc.setTextColor(...INK);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('Controle WebHub', marginX, 18);
+    doc.text('Controle Financeiro WebHub', marginX, 18);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9.5);
     doc.text('Relatório financeiro mensal', marginX, 25);
@@ -356,7 +356,7 @@ STORE.onReady(() => {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(160);
-      doc.text(`Controle WebHub • gerado em ${new Date().toLocaleDateString('pt-BR')}`, marginX, pageHeight - 10);
+      doc.text(`Controle Financeiro WebHub • gerado em ${new Date().toLocaleDateString('pt-BR')}`, marginX, pageHeight - 10);
       doc.text(`Página ${p} de ${pageCount}`, pageWidth - marginX, pageHeight - 10, { align: 'right' });
     }
 

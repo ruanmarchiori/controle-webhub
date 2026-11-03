@@ -12,7 +12,7 @@ header('Cache-Control: no-store');
    a tela de erro do PHP, que mostraria caminhos, consultas SQL e trechos de código. */
 ini_set('display_errors', '0');
 set_exception_handler(function (Throwable $e): void {
-  error_log('[Controle WebHub] ' . get_class($e) . ': ' . $e->getMessage() . ' em ' . $e->getFile() . ':' . $e->getLine());
+  error_log('[Controle Financeiro WebHub] ' . get_class($e) . ': ' . $e->getMessage() . ' em ' . $e->getFile() . ':' . $e->getLine());
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'Erro interno no servidor. Tente de novo em instantes.'], JSON_UNESCAPED_UNICODE);
   exit;

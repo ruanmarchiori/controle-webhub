@@ -90,7 +90,7 @@ if (!is_file($configFile)) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Setup | Controle WebHub</title>
+<title>Setup | Controle Financeiro WebHub</title>
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f4f2;color:#1b1b1b;margin:0;padding:32px 16px;}
   .card{max-width:560px;margin:0 auto;background:#fff;border-radius:16px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.06);}

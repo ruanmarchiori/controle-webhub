@@ -1,4 +1,4 @@
-/* Modo de funcionamento do Controle WebHub — troque aqui e publique.
+/* Modo de funcionamento do Controle Financeiro WebHub — troque aqui e publique.
 
    'local'  → os dados ficam no navegador (localStorage). Não precisa de servidor: roda de
               graça no GitHub Pages. Limitação: cada navegador/aparelho tem os próprios

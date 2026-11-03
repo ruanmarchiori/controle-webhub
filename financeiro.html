@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Financeiro | Controle WebHub</title>
+<title>Financeiro | Controle Financeiro WebHub</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="js/config.js?v=202611031512"></script>
-<script src="js/auth.js?v=202611031512"></script>
+<script src="js/config.js?v=202611031541"></script>
+<script src="js/auth.js?v=202611031541"></script>
 <script>AUTH.requireAuth();</script>
-<script src="js/theme.js?v=202611031512"></script>
-<script src="js/sidebar.js?v=202611031512"></script>
-<link rel="stylesheet" href="css/style.css?v=202611031512">
+<script src="js/theme.js?v=202611031541"></script>
+<script src="js/sidebar.js?v=202611031541"></script>
+<link rel="stylesheet" href="css/style.css?v=202611031541">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
 </head>
 <body>
@@ -39,8 +39,8 @@
   <aside class="sidebar">
     <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="Recolher menu"><svg class="icon-sm"><use href="#i-chevron"/></svg></button>
     <div class="brand">
-      <div class="brand-mark">CW</div>
-      <span class="brand-name">Controle WebHub</span>
+      <img class="brand-mark" src="logo.svg" alt="" width="34" height="34">
+      <span class="brand-name">Controle Financeiro WebHub</span>
     </div>
     <nav class="nav-group">
       <a href="index.html" class="nav-link"><svg class="icon"><use href="#i-home"/></svg><span>Dashboard</span></a>
@@ -195,9 +195,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/store.js?v=202611031512"></script>
-<script src="js/notifications.js?v=202611031512"></script>
-<script src="js/financeiro.js?v=202611031512"></script>
+<script src="js/store.js?v=202611031541"></script>
+<script src="js/notifications.js?v=202611031541"></script>
+<script src="js/financeiro.js?v=202611031541"></script>
 <script>document.getElementById('logoutBtn').addEventListener('click', () => AUTH.logout());</script>
 </body>
 </html>

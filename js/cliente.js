@@ -577,7 +577,7 @@ STORE.onReady(() => {
       msgEl.style.color = '#ef5b5b';
     } else {
       currentClient = existing;
-      document.getElementById('pageTitle').textContent = `Editar ${existing.empresa} | Controle WebHub`;
+      document.getElementById('pageTitle').textContent = `Editar ${existing.empresa} | Controle Financeiro WebHub`;
       document.getElementById('formTitle').textContent = existing.empresa || 'Editar cliente';
       form.empresa.value = existing.empresa || '';
       form.nomeCliente.value = existing.nomeCliente || '';

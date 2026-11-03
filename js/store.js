@@ -1,4 +1,4 @@
-/* Camada de dados do Controle WebHub. Dois modos (js/config.js):
+/* Camada de dados do Controle Financeiro WebHub. Dois modos (js/config.js):
    - 'server': os dados vivem no servidor (api/) e o painel mostra os mesmos clientes em
      qualquer aparelho;
    - 'local': os dados ficam no localStorage do navegador (GitHub Pages, sem servidor).

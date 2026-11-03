@@ -1,4 +1,4 @@
-/* Autenticação do Controle WebHub. Funciona nos dois modos definidos em js/config.js:
+/* Autenticação do Controle Financeiro WebHub. Funciona nos dois modos definidos em js/config.js:
 
    MODO 'server' — login de verdade em api/auth.php: senha com hash bcrypt no banco e sessão
    por cookie HttpOnly ligada a um token no servidor. Sem sessão válida a API não devolve

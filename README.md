@@ -1,4 +1,4 @@
-# Controle WebHub
+# Controle Financeiro WebHub
 
 Painel pessoal para controle dos clientes fechados pela agência: valores, tipo de projeto, origem do cliente, dev responsável, status, parcelas e a divisão financeira entre agência, você e o dev.
 
