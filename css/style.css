@@ -653,6 +653,26 @@ html.sidebar-collapsed .main{margin-left:76px;}
 .report-table td{padding:13px 14px;border-bottom:1px solid var(--gray-100);}
 .report-table tr:last-child td{border-bottom:none;}
 .report-empty{text-align:center;color:var(--gray-500);padding:30px 14px !important;}
+/* Parcelas do cliente e dos repasses (agência / dev): cada célula empilha linhas curtas. */
+.report-table-parcelas{min-width:820px;}
+.report-table-parcelas td{vertical-align:top;}
+.report-table-parcelas td strong{display:block;}
+.rep-linha,.rep-mudo,.rep-aviso,.rep-check{display:block;line-height:1.45;}
+.rep-linha + .rep-linha{margin-top:2px;}
+.rep-linha em{font-style:normal;font-weight:700;font-size:.76rem;color:var(--gray-500);margin-left:4px;}
+.rep-linha em.is-ok{color:#1e8a4c;}
+.rep-linha em.is-pending{color:var(--red);}
+.rep-mudo{color:var(--gray-500);font-size:.8rem;}
+.rep-aviso{color:var(--red);font-weight:700;font-size:.8rem;margin-top:4px;}
+.rep-check{color:#1e8a4c;font-weight:600;font-size:.8rem;margin-top:4px;}
+/* Quadro acima da tabela: parcelas de agência/dev de meses anteriores ainda sem pagar. */
+.report-alerts{margin:0 0 14px;padding:12px 16px;border-radius:var(--radius-sm);font-size:.86rem;display:flex;flex-direction:column;gap:4px;}
+.report-alerts.is-bad{background:rgba(239,91,91,.12);color:var(--red);}
+.report-alerts.is-ok{background:rgba(30,138,76,.12);color:#1e8a4c;}
+.report-alerts span{color:var(--gray-700);}
+.report-alerts ul{margin:4px 0 0;padding-left:18px;color:var(--gray-700);}
+.report-alerts li + li{margin-top:3px;}
+.report-alerts li strong{color:inherit;}
 
 /* ================= Modal de detalhamento ================= */
 .modal-overlay{

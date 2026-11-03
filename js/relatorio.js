@@ -3,6 +3,7 @@ STORE.onReady(() => {
   const periodInput = document.getElementById('periodInput');
   const statsEl = document.getElementById('reportStats');
   const tbody = document.getElementById('reportTableBody');
+  const alertsEl = document.getElementById('reportAlerts');
 
   const now = new Date();
   periodInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -50,6 +51,59 @@ STORE.onReady(() => {
 
   function statusLabel(c) { return c.status === 'concluido' ? 'Concluído' : 'Em desenvolvimento'; }
 
+  /* ===== Parcelas do cliente e dos repasses (agência / dev) ===== */
+  function parcelaClienteTexto(pc) {
+    if (!pc) return '—';
+    if (pc.avista) return 'À vista';
+    const n = pc.numeros;
+    const nums = n.length === 1 ? n[0] : n.slice(0, -1).join(', ') + ' e ' + n[n.length - 1];
+    return `${n.length === 1 ? 'Parcela' : 'Parcelas'} ${nums} de ${pc.de}`;
+  }
+
+  function nomeParte(quem, c) {
+    if (quem === 'agencia') return 'da agência';
+    return c.devResponsavel ? `do dev (${c.devResponsavel})` : 'do dev';
+  }
+
+  /* Status de cada parcela que vence no mês. A 2ª só vence quando o cliente quita. */
+  function etapaStatus(e) {
+    if (e.paga) return { texto: 'paga', cls: 'is-ok' };
+    if (e.n === 2 && !e.devida) return { texto: 'vence quando o cliente quitar', cls: '' };
+    return { texto: 'a pagar', cls: 'is-pending' };
+  }
+
+  /* Avisos de parcela anterior (agência/dev) que já venceu e não foi paga. */
+  function avisosAtraso(c, sit) {
+    const avisos = [];
+    ['agencia', 'dev'].forEach((quem) => {
+      const p = sit.partes[quem];
+      if (!p) return;
+      p.atrasadas.forEach((e) => {
+        avisos.push(`A ${e.n}ª parcela ${nomeParte(quem, c)} ainda não foi paga (${STORE.formatBRL(e.valor)}).`);
+      });
+    });
+    return avisos;
+  }
+
+  function parteHTML(quem, c, sit) {
+    const p = sit.partes[quem];
+    if (!p) return '<span class="rep-mudo">Sem repasse</span>';
+    const linhas = p.vence.map((e) => {
+      const st = etapaStatus(e);
+      return `<span class="rep-linha"><b>${e.n}ª parcela</b> · ${STORE.formatBRL(e.valor)} <em class="${st.cls}">${st.texto}</em></span>`;
+    });
+    if (!linhas.length) linhas.push('<span class="rep-mudo">Nenhuma parcela vence no mês</span>');
+    if (p.atrasadas.length) {
+      p.atrasadas.forEach((e) => {
+        linhas.push(`<span class="rep-aviso">⚠ ${e.n}ª parcela ainda não foi paga</span>`);
+      });
+    } else if (p.anteriores.length) {
+      const ns = p.anteriores.map(e => `${e.n}ª`).join(' e ');
+      linhas.push(`<span class="rep-check">✓ ${ns} ${p.anteriores.length > 1 ? 'parcelas já pagas' : 'parcela já paga'}</span>`);
+    }
+    return linhas.join('');
+  }
+
   function render() {
     const period = periodInput.value;
     if (!period) return;
@@ -95,16 +149,32 @@ STORE.onReady(() => {
     `;
 
     if (!entries.length) {
-      tbody.innerHTML = `<tr><td colspan="4" class="report-empty">Nenhum valor previsto em ${monthLabel(period)}.</td></tr>`;
-    } else {
-      tbody.innerHTML = entries.map(({ c, f }) => `
-        <tr>
-          <td>${STORE.esc(c.empresa || 'Sem nome')}</td>
-          <td>${STORE.esc(c.tipoProjeto || '—')}</td>
-          <td>${STORE.formatBRL(f.valorTotal)}</td>
-          <td>${statusLabel(c)}</td>
-        </tr>`).join('');
+      tbody.innerHTML = `<tr><td colspan="5" class="report-empty">Nenhum valor previsto em ${monthLabel(period)}.</td></tr>`;
+      alertsEl.hidden = true;
+      return;
     }
+    tbody.innerHTML = entries.map(({ c, f }) => {
+      const sit = STORE.situacaoMes(c, period);
+      const pc = sit.parcelaCliente;
+      const pcStatus = pc ? (pc.pago ? '<em class="is-ok">paga</em>' : '<em class="is-pending">a receber</em>') : '';
+      return `
+        <tr>
+          <td><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span class="rep-mudo">${STORE.esc(c.tipoProjeto || '—')} · ${statusLabel(c)}</span></td>
+          <td><span class="rep-linha"><b>${parcelaClienteTexto(pc)}</b> ${pcStatus}</span></td>
+          <td>${STORE.formatBRL(f.valorTotal)}</td>
+          <td>${parteHTML('agencia', c, sit)}</td>
+          <td>${parteHTML('dev', c, sit)}</td>
+        </tr>`;
+    }).join('');
+
+    /* Quadro de cima: todas as parcelas de agência/dev de meses anteriores ainda sem pagar. */
+    const avisos = entries.flatMap(({ c }) => avisosAtraso(c, STORE.situacaoMes(c, period))
+      .map(t => `<li><strong>${STORE.esc(c.empresa || 'Sem nome')}:</strong> ${STORE.esc(t)}</li>`));
+    alertsEl.hidden = false;
+    alertsEl.className = 'report-alerts ' + (avisos.length ? 'is-bad' : 'is-ok');
+    alertsEl.innerHTML = avisos.length
+      ? `<strong>Repasses atrasados (${avisos.length})</strong><ul>${avisos.join('')}</ul>`
+      : '<strong>✓ Repasses em dia</strong><span>As parcelas da agência e dos devs que venceram antes deste mês já foram pagas.</span>';
   }
 
   periodInput.addEventListener('change', render);
@@ -193,11 +263,12 @@ STORE.onReady(() => {
       doc.text('Nenhum valor previsto nesse período.', marginX, y);
     } else {
       const cols = [
-        { label: 'Empresa', width: contentWidth * 0.27, get: ({ c }) => c.empresa || 'Sem nome' },
-        { label: 'Tipo de projeto', width: contentWidth * 0.26, get: ({ c }) => c.tipoProjeto || '—' },
-        { label: 'Valor', width: contentWidth * 0.15, get: ({ f }) => STORE.formatBRL(f.valorTotal) },
-        { label: 'Status', width: contentWidth * 0.20, get: ({ c }) => statusLabel(c) },
-        { label: 'Origem', width: contentWidth * 0.12, get: ({ c }) => c.origem || '—' }
+        { label: 'Empresa', width: contentWidth * 0.24, get: ({ c }) => c.empresa || 'Sem nome' },
+        { label: 'Tipo de projeto', width: contentWidth * 0.20, get: ({ c }) => c.tipoProjeto || '—' },
+        { label: 'Parcela', width: contentWidth * 0.16, get: ({ c }) => parcelaClienteTexto(STORE.situacaoMes(c, period).parcelaCliente) },
+        { label: 'Valor', width: contentWidth * 0.14, get: ({ f }) => STORE.formatBRL(f.valorTotal) },
+        { label: 'Status', width: contentWidth * 0.16, get: ({ c }) => statusLabel(c) },
+        { label: 'Origem', width: contentWidth * 0.10, get: ({ c }) => c.origem || '—' }
       ];
       const headerRowH = 9;
       const lineH = 4.4;
@@ -239,6 +310,43 @@ STORE.onReady(() => {
       });
       doc.setDrawColor(...BORDER);
       doc.line(marginX, y - 6, pageWidth - marginX, y - 6);
+
+      /* ===== Parcelas da agência e dos devs (o que vence no mês + atrasos) ===== */
+      y += 8;
+      if (y > pageHeight - 50) { doc.addPage(); y = 24; }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12.5);
+      doc.setTextColor(...INK);
+      doc.text('Parcelas da agência e dos devs', marginX, y);
+      y += 8;
+      const RED = [205, 60, 60];
+      const GREEN = [30, 138, 76];
+      entries.forEach(({ c }) => {
+        const sit = STORE.situacaoMes(c, period);
+        const linhas = [];
+        [['agencia', 'Agência'], ['dev', c.devResponsavel ? `Dev (${c.devResponsavel})` : 'Dev']].forEach(([quem, rotulo]) => {
+          const p = sit.partes[quem];
+          if (!p) return;
+          const vence = p.vence.map(e => `${e.n}ª parcela ${STORE.formatBRL(e.valor)} (${etapaStatus(e).texto})`).join(' · ');
+          linhas.push({ texto: `${rotulo}: ${vence || 'nenhuma parcela vence no mês'}`, cor: INK });
+          p.atrasadas.forEach(e => linhas.push({ texto: `   A ${e.n}ª parcela ${nomeParte(quem, c)} ainda não foi paga (${STORE.formatBRL(e.valor)}).`, cor: RED }));
+          if (!p.atrasadas.length && p.anteriores.length) linhas.push({ texto: `   Parcela anterior paga.`, cor: GREEN });
+        });
+        if (!linhas.length) return;
+        if (y + 6 + linhas.length * 5 > pageHeight - 20) { doc.addPage(); y = 24; }
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...INK);
+        doc.text(c.empresa || 'Sem nome', marginX, y);
+        y += 5.5;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        linhas.forEach((l) => {
+          doc.setTextColor(...l.cor);
+          doc.splitTextToSize(l.texto, contentWidth - 6).forEach((t) => { doc.text(t, marginX + 3, y); y += 5; });
+        });
+        y += 3;
+      });
     }
 
     /* ===== Rodapé em todas as páginas ===== */

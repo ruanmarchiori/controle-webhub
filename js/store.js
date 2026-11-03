@@ -555,6 +555,64 @@ const STORE = (function () {
     };
   }
 
+  /* ===== Situação de um cliente num mês (aba Relatório) =====
+     Diz qual parcela do cliente cai no mês ("2 de 3") e, pra agência e pro dev, qual das
+     duas parcelas do repasse vence nele — 1ª = 50% na largada (mês de início do projeto),
+     2ª = 50% na quitação (mês da última parcela do cliente). Também confere as parcelas de
+     meses anteriores: se já venceram e o que foi repassado não cobre, vira um aviso.
+     "Paga" olha tudo que já foi lançado (em qualquer data), então o aviso some assim que
+     o repasse for registrado no cadastro do cliente. */
+  function situacaoMes(client, period) {
+    const inicioMes = (client.dataInicio || client.createdAt || '').slice(0, 7);
+    const quitado = clienteQuitou(client);
+
+    let parcelaCliente = null;
+    let quitacaoMes = inicioMes;
+    if (client.tipoPagamento === 'parcelado') {
+      const lista = (client.parcelas || [])
+        .map(p => ({ ...p, data: p.data || '' }))
+        .sort((a, b) => a.data.localeCompare(b.data));
+      const doMes = lista
+        .map((p, i) => ({ n: i + 1, valor: parseFloat(p.valor) || 0, pago: !!p.pago, data: p.data }))
+        .filter(p => p.data.slice(0, 7) === period);
+      if (doMes.length) parcelaCliente = { numeros: doMes.map(p => p.n), de: lista.length, valor: doMes.reduce((s, p) => s + p.valor, 0), pago: doMes.every(p => p.pago) };
+      /* Quitou: mês do último pagamento de fato. Ainda não: mês da última parcela prevista. */
+      const datas = quitado
+        ? lista.filter(p => p.pago).map(p => (p.pagoEm || p.data))
+        : lista.map(p => p.data);
+      const ultima = datas.filter(Boolean).sort().pop();
+      if (ultima) quitacaoMes = ultima.slice(0, 7);
+    } else {
+      if (quitado && client.clientePagoEm) quitacaoMes = client.clientePagoEm.slice(0, 7);
+      if (inicioMes === period) parcelaCliente = { numeros: [], de: 0, valor: parseFloat(client.valor) || 0, pago: quitado, avista: true };
+    }
+
+    const split = splitValues(client);
+    const repassado = repasses(client);
+    const comecou = projetoComecou(client);
+    const partes = {};
+    ['agencia', 'dev'].forEach((quem) => {
+      const total = split[quem];
+      if (!(total > 0.005)) return;
+      const etapa = total * ETAPA_INICIO;
+      const pago = repassado[quem];
+      const etapas = [
+        { n: 1, mes: inicioMes, devida: comecou },
+        { n: 2, mes: quitacaoMes, devida: quitado }
+      ].map(e => ({ ...e, valor: etapa, paga: pago >= etapa * e.n - 0.01 }));
+      const anteriores = etapas.filter(e => e.mes && e.mes < period && e.devida);
+      partes[quem] = {
+        total,
+        pago,
+        vence: etapas.filter(e => e.mes === period),
+        anteriores,
+        atrasadas: anteriores.filter(e => !e.paga)
+      };
+    });
+
+    return { parcelaCliente, quitado, partes };
+  }
+
   function totals() {
     const list = getAll();
     const acc = {
@@ -701,7 +759,7 @@ const STORE = (function () {
     onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
     splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo, clienteQuitou, projetoComecou, fracaoVencida,
-    valorRecebido, financeiro, financeiroPorMes, totals, initials, esc, whatsappLink, safeUrl, formatBRL, formatDate, getDueCharges,
+    valorRecebido, financeiro, financeiroPorMes, situacaoMes, totals, initials, esc, whatsappLink, safeUrl, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,
     getSalaryPct, setSalaryPct, saveSetting, getSettings, DEFAULT_SALARY_PCT,
