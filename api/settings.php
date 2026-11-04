@@ -1,6 +1,6 @@
 <?php
 /* Configurações do painel que precisam valer em qualquer aparelho: listas personalizadas
-   (options), % do salário (salaryPct) e cobranças já vistas no sino (seenCharges).
+   (options), % do salário (salaryPct), imposto mensal (impostoMensal), divisão do caixa (reservaSplit) e cobranças já vistas no sino (seenCharges).
    Tema e menu recolhido continuam no navegador, porque são preferência do aparelho.
    GET settings.php          → { settings: { chave: valor, ... } }
    PUT settings.php          → body {key, value} — grava uma chave */

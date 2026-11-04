@@ -497,6 +497,11 @@ html.sidebar-collapsed .main{margin-left:76px;}
 .split-card span{font-size:.78rem;font-weight:600;color:var(--gray-500);}
 .split-card strong{font-size:1.15rem;font-weight:700;color:var(--ink);}
 .split-card small{font-size:.72rem;color:var(--gray-500);}
+.salario-campos{display:grid;grid-template-columns:repeat(2,minmax(0,260px));gap:14px;}
+#impostoResumo{margin-top:14px;}
+.reserva-split{margin-top:22px;padding-top:20px;border-top:1px solid var(--gray-100);}
+.reserva-split h4{margin:0 0 6px;font-size:.92rem;font-weight:700;color:var(--ink);}
+.reserva-pct{margin-top:auto;padding-top:10px;max-width:120px;}
 .split-card.is-agencia{border-color:#9db8f5;background:#e2ecff;}
 .split-card.is-eu{border-color:#6fcf97;background:#e3f6ea;}
 .split-card.is-dev{border-color:#f3a0a0;background:#fdecec;}
@@ -640,6 +645,7 @@ html.sidebar-collapsed .main{margin-left:76px;}
      compridos) não cabem lado a lado — empilha só aqui, mantendo as 2 colunas nos
      celulares comuns (a partir de ~375px já cabe direitinho). */
   .split-breakdown.is-2col{grid-template-columns:1fr;}
+  .salario-campos{grid-template-columns:1fr;}
 }
 
 /* ================= Relatório ================= */

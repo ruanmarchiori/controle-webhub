@@ -739,6 +739,44 @@ const STORE = (function () {
     return n;
   }
 
+  /* Imposto fixo do mês (DAS do MEI), descontado do saldo antes da divisão salário x caixa.
+     O valor muda todo ano com o salário mínimo, por isso é editável na página Financeiro. */
+  const DEFAULT_IMPOSTO_MENSAL = 85;
+
+  function getImpostoMensal() {
+    const n = parseFloat(settings.impostoMensal);
+    return Number.isFinite(n) ? n : DEFAULT_IMPOSTO_MENSAL;
+  }
+
+  function setImpostoMensal(value) {
+    const n = Math.max(0, parseFloat(value) || 0);
+    saveSetting('impostoMensal', n);
+    return n;
+  }
+
+  /* Como o caixa da empresa se divide nos pilares (% do caixa, não do saldo), também
+     ajustável na página Financeiro. */
+  const DEFAULT_RESERVA_SPLIT = { seguranca: 50, reinvestimento: 50 };
+
+  function getReservaSplit() {
+    const salvo = settings.reservaSplit || {};
+    const split = {};
+    Object.keys(DEFAULT_RESERVA_SPLIT).forEach((pilar) => {
+      const n = parseFloat(salvo[pilar]);
+      split[pilar] = Number.isFinite(n) ? n : DEFAULT_RESERVA_SPLIT[pilar];
+    });
+    return split;
+  }
+
+  function setReservaSplit(valores) {
+    const split = {};
+    Object.keys(DEFAULT_RESERVA_SPLIT).forEach((pilar) => {
+      split[pilar] = Math.max(0, Math.min(100, parseFloat(valores[pilar]) || 0));
+    });
+    saveSetting('reservaSplit', split);
+    return split;
+  }
+
   /* Cópia completa dos dados (clientes + configurações) — usada pelo backup em Configurações
      e aceita de volta pela página de importação. */
   function exportAll() {
@@ -762,7 +800,7 @@ const STORE = (function () {
     valorRecebido, financeiro, financeiroPorMes, situacaoMes, totals, initials, esc, whatsappLink, safeUrl, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,
-    getSalaryPct, setSalaryPct, saveSetting, getSettings, DEFAULT_SALARY_PCT,
+    getSalaryPct, setSalaryPct, getImpostoMensal, setImpostoMensal, getReservaSplit, setReservaSplit, saveSetting, getSettings, DEFAULT_SALARY_PCT,
     exportAll
   };
 })();

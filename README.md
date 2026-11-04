@@ -32,7 +32,7 @@ importar.html     traz dados de um backup ou da versão antiga (localStorage)
 ```
 
 - Cada cliente é guardado inteiro como JSON na tabela `clients` — adicionar um campo novo no cadastro não exige mexer no banco.
-- `settings` guarda as listas personalizadas, a % do salário e as notificações já vistas.
+- `settings` guarda as listas personalizadas, a % do salário, o imposto mensal, a divisão do caixa e as notificações já vistas.
 - As telas usam `STORE.onReady(() => { ... })` (em vez de `DOMContentLoaded`) para esperar os dados chegarem do servidor.
 
 ## Páginas
@@ -90,7 +90,8 @@ A aba **Financeiro** (`financeiro.html`) junta os números financeiros de toda a
 - **Fechamento do mês**: escolha um período (mês/ano) e veja o que foi fechado, recebido e repassado à agência *só naquele mês*, além do saldo líquido do mês.
 
 **Projeto parcelado que cai em vários meses:** um projeto fechado em setembro com parcelas previstas pra outubro e novembro aparece em **cada um desses meses** (não só em setembro) — cada parcela conta no mês do próprio vencimento, com a % de cada um (agência/eu/dev) aplicada em cima do valor daquela parcela específica. Cliente à vista continua contando no mês em que foi fechado, já que não tem parcela com data própria. Isso vale tanto na aba Financeiro (visão geral no modo "Mensal" e "Fechamento do mês") quanto no relatório em PDF — os três batem entre si.
-- **Meu salário x caixa da empresa**: do saldo líquido do mês, um percentual (editável, guardado pra próxima vez) vira seu salário e o resto fica no caixa da empresa como reserva/reinvestimento. O padrão é **60% salário / 40% caixa** — uma recomendação geral pra uma empresa pequena de serviço que quer crescer com segurança (manter uma reserva de 30–40% em vez de retirar tudo), mas é só um ponto de partida: ajuste pro que fizer sentido pra sua realidade.
+- **Meu salário x caixa da empresa**: do saldo líquido do mês sai primeiro o **imposto mensal fixo** (DAS do MEI, padrão R$ 85, editável). Do que sobra, um percentual (editável, guardado pra próxima vez) vira seu salário e o resto fica no caixa da empresa como reserva/reinvestimento. O padrão é **60% salário / 40% caixa** — uma recomendação geral pra uma empresa pequena de serviço que quer crescer com segurança (manter uma reserva de 30–40% em vez de retirar tudo), mas é só um ponto de partida: ajuste pro que fizer sentido pra sua realidade.
+- **Para onde vai o caixa da empresa**: o valor que fica no caixa no mês é dividido em dois pilares, com percentuais editáveis e guardados: **segurança e capital de giro** e **reinvestimento e melhorias** (padrão 50% cada, só um ponto de partida). É uma separação de planejamento: o sistema não registra gastos nem acumula esses valores de um mês para o outro.
 
 ## Cache do navegador
 

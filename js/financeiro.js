@@ -324,6 +324,9 @@ STORE.onReady(() => {
   const salaryPctInput = document.getElementById('salaryPctInput');
   salaryPctInput.value = STORE.getSalaryPct();
 
+  const impostoInput = document.getElementById('impostoInput');
+  impostoInput.value = STORE.getImpostoMensal();
+
   let currentMonthSaldo = 0;
 
   function renderMonth() {
@@ -351,16 +354,72 @@ STORE.onReady(() => {
 
   function renderSalarySplit() {
     const pct = Math.max(0, Math.min(100, parseFloat(salaryPctInput.value) || 0));
-    const salary = currentMonthSaldo * (pct / 100);
-    const reserve = currentMonthSaldo - salary;
+    /* O imposto é fixo e vem antes da divisão: só o que sobra dele vira salário e caixa. */
+    const imposto = Math.max(0, parseFloat(impostoInput.value) || 0);
+    const disponivel = Math.max(0, currentMonthSaldo - imposto);
+    const salary = disponivel * (pct / 100);
+    const reserve = disponivel - salary;
+
+    const resumo = document.getElementById('impostoResumo');
+    if (currentMonthSaldo < imposto) {
+      resumo.className = 'split-total is-bad';
+      resumo.textContent = `O saldo do mês (${STORE.formatBRL(currentMonthSaldo)}) não cobre o imposto de ${STORE.formatBRL(imposto)}: faltam ${STORE.formatBRL(imposto - currentMonthSaldo)}.`;
+    } else {
+      resumo.className = 'split-total';
+      resumo.textContent = `Saldo líquido ${STORE.formatBRL(currentMonthSaldo)} − imposto ${STORE.formatBRL(imposto)} = ${STORE.formatBRL(disponivel)} para dividir`;
+    }
 
     document.getElementById('salaryValue').textContent = STORE.formatBRL(salary);
     document.getElementById('salaryPctLabel').textContent = `${pct}%`;
     document.getElementById('reserveValue').textContent = STORE.formatBRL(reserve);
     document.getElementById('reservePctLabel').textContent = `${100 - pct}%`;
+    renderReservaSplit(reserve);
   }
 
+  /* O que fica no caixa, dividido nos pilares. Com a soma em 100%, o último pilar leva
+     o resto em centavos, para os três fecharem exatamente com o valor do caixa. Sem saldo
+     no mês não há o que separar: os pilares ficam zerados em vez de negativos. */
+  const reservaInputs = [...document.querySelectorAll('[data-pilar]')];
+  const reservaSplit = STORE.getReservaSplit();
+  reservaInputs.forEach((input) => { input.value = reservaSplit[input.dataset.pilar]; });
+
+  function renderReservaSplit(reserve) {
+    const pcts = reservaInputs.map(input => Math.max(0, Math.min(100, parseFloat(input.value) || 0)));
+    const soma = Math.round(pcts.reduce((a, b) => a + b, 0) * 100) / 100;
+    const centavos = Math.max(0, Math.round(reserve * 100));
+    let distribuido = 0;
+    reservaInputs.forEach((input, i) => {
+      const ultimo = i === reservaInputs.length - 1;
+      const valor = ultimo && soma === 100 ? centavos - distribuido : Math.round(centavos * pcts[i] / 100);
+      distribuido += valor;
+      document.getElementById(`reserva_${input.dataset.pilar}`).textContent = STORE.formatBRL(valor / 100);
+    });
+
+    const total = document.getElementById('reservaTotal');
+    if (soma !== 100) {
+      total.className = 'split-total is-bad';
+      total.textContent = `Soma: ${soma}%. ${soma < 100 ? `Faltam ${Math.round((100 - soma) * 100) / 100}% para distribuir.` : `Passou ${Math.round((soma - 100) * 100) / 100}% do caixa.`}`;
+    } else if (centavos === 0) {
+      total.className = 'split-total';
+      total.textContent = 'Soma: 100%. Sem valor no caixa para distribuir neste mês.';
+    } else {
+      total.className = 'split-total is-ok';
+      total.textContent = 'Soma: 100%';
+    }
+  }
+
+  reservaInputs.forEach((input) => input.addEventListener('input', () => {
+    const valores = {};
+    reservaInputs.forEach((i) => { valores[i.dataset.pilar] = i.value; });
+    STORE.setReservaSplit(valores);
+    renderSalarySplit();
+  }));
+
   periodInput.addEventListener('change', renderMonth);
+  impostoInput.addEventListener('input', () => {
+    STORE.setImpostoMensal(impostoInput.value);
+    renderSalarySplit();
+  });
   salaryPctInput.addEventListener('input', () => {
     STORE.setSalaryPct(salaryPctInput.value);
     renderSalarySplit();

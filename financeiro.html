@@ -6,12 +6,12 @@
 <title>Financeiro | Controle Financeiro WebHub</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="js/config.js?v=202611031541"></script>
-<script src="js/auth.js?v=202611031541"></script>
+<script src="js/config.js?v=202611041535"></script>
+<script src="js/auth.js?v=202611041535"></script>
 <script>AUTH.requireAuth();</script>
-<script src="js/theme.js?v=202611031541"></script>
-<script src="js/sidebar.js?v=202611031541"></script>
-<link rel="stylesheet" href="css/style.css?v=202611031541">
+<script src="js/theme.js?v=202611041535"></script>
+<script src="js/sidebar.js?v=202611041535"></script>
+<link rel="stylesheet" href="css/style.css?v=202611041535">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
 </head>
 <body>
@@ -176,18 +176,54 @@
     <section class="panel" style="margin-top:22px;">
       <div class="panel-head"><h3>Meu salário x caixa da empresa</h3></div>
       <p class="field-hint" style="margin:-8px 0 16px;max-width:640px;">
-        Do saldo líquido do mês acima, quanto vira seu salário agora e quanto fica guardado na empresa (reserva + reinvestimento).
+        Do saldo líquido do mês acima sai primeiro o imposto fixo. O que sobra se divide entre o seu salário e o que fica guardado na empresa (reserva + reinvestimento).
         <strong>Recomendação geral</strong> pra uma empresa pequena de serviço que quer crescer com segurança: guarde pelo menos
         <strong>30–40% no caixa</strong> (reserva de emergência e reinvestimento) e retire o restante como salário — por isso o padrão
         abaixo é 60% salário / 40% caixa. Ajuste como preferir, é só um ponto de partida.
       </p>
-      <label class="field" style="max-width:260px;">
-        <span>Percentual pro meu salário (%)</span>
-        <input type="number" id="salaryPctInput" min="0" max="100" step="1" value="60">
-      </label>
+      <div class="salario-campos">
+        <label class="field">
+          <span>Imposto mensal, DAS do MEI (R$)</span>
+          <input type="number" id="impostoInput" min="0" step="0.01">
+        </label>
+        <label class="field">
+          <span>Percentual pro meu salário (%)</span>
+          <input type="number" id="salaryPctInput" min="0" max="100" step="1" value="60">
+        </label>
+      </div>
+      <div class="split-total" id="impostoResumo"></div>
       <div class="split-breakdown is-2col" style="margin-top:18px;">
         <div class="split-card is-eu"><span>Meu salário este mês</span><strong id="salaryValue">R$ 0,00</strong><small id="salaryPctLabel">60%</small></div>
         <div class="split-card is-agencia"><span>Fica no caixa da empresa</span><strong id="reserveValue">R$ 0,00</strong><small id="reservePctLabel">40%</small></div>
+      </div>
+
+      <!-- O caixa da empresa dividido nos pilares -->
+      <div class="reserva-split">
+        <h4>Para onde vai o caixa da empresa</h4>
+        <p class="field-hint" style="margin:0 0 14px;max-width:640px;">
+          O valor de "Fica no caixa da empresa" dividido em duas partes. Os percentuais são só um ponto de partida: ajuste como preferir.
+        </p>
+        <div class="split-breakdown is-2col">
+          <div class="split-card">
+            <span>Segurança e capital de giro</span>
+            <strong id="reserva_seguranca">R$ 0,00</strong>
+            <small>Manter o fluxo de caixa estável, segurar os meses mais fracos e ter folga para honrar repasses a parceiros.</small>
+            <label class="field reserva-pct">
+              <span>% do caixa</span>
+              <input type="number" data-pilar="seguranca" min="0" max="100" step="1">
+            </label>
+          </div>
+          <div class="split-card">
+            <span>Reinvestimento e melhorias</span>
+            <strong id="reserva_reinvestimento">R$ 0,00</strong>
+            <small>Ferramentas, upgrades de setup, licenças e equipamentos.</small>
+            <label class="field reserva-pct">
+              <span>% do caixa</span>
+              <input type="number" data-pilar="reinvestimento" min="0" max="100" step="1">
+            </label>
+          </div>
+        </div>
+        <div class="split-total" id="reservaTotal">Soma: 100%</div>
       </div>
     </section>
   </main>
@@ -195,9 +231,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/store.js?v=202611031541"></script>
-<script src="js/notifications.js?v=202611031541"></script>
-<script src="js/financeiro.js?v=202611031541"></script>
+<script src="js/store.js?v=202611041535"></script>
+<script src="js/notifications.js?v=202611041535"></script>
+<script src="js/financeiro.js?v=202611041535"></script>
 <script>document.getElementById('logoutBtn').addEventListener('click', () => AUTH.logout());</script>
 </body>
 </html>

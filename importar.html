@@ -6,11 +6,11 @@
 <title>Importar dados | Controle Financeiro WebHub</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="js/config.js?v=202611031541"></script>
-<script src="js/auth.js?v=202611031541"></script>
+<script src="js/config.js?v=202611041535"></script>
+<script src="js/auth.js?v=202611041535"></script>
 <script>AUTH.requireAuth();</script>
-<script src="js/theme.js?v=202611031541"></script>
-<link rel="stylesheet" href="css/style.css?v=202611031541">
+<script src="js/theme.js?v=202611041535"></script>
+<link rel="stylesheet" href="css/style.css?v=202611041535">
 <style>
   .import-card{max-width:520px;}
   .import-source{border:1.5px solid var(--gray-100);border-radius:14px;padding:18px;margin-top:14px;}
@@ -61,7 +61,7 @@
   </div>
 </div>
 
-<script src="js/store.js?v=202611031541"></script>
+<script src="js/store.js?v=202611041535"></script>
 <script>
 STORE.onReady(() => {
   const serverInfo = document.getElementById('serverInfo');
@@ -94,7 +94,7 @@ STORE.onReady(() => {
     return merged;
   }
 
-  async function runImport({ clients, options, salaryPct, seenCharges }, msgEl, btn, doneLabel) {
+  async function runImport({ clients, options, salaryPct, impostoMensal, reservaSplit, seenCharges }, msgEl, btn, doneLabel) {
     msgEl.textContent = '';
     btn.disabled = true;
     btn.textContent = 'Enviando...';
@@ -106,6 +106,12 @@ STORE.onReady(() => {
       if (mergedOptions) await STORE.saveSetting('options', mergedOptions);
       if (Number.isFinite(parseFloat(salaryPct)) && STORE.getSettings().salaryPct === undefined) {
         await STORE.saveSetting('salaryPct', parseFloat(salaryPct));
+      }
+      if (Number.isFinite(parseFloat(impostoMensal)) && STORE.getSettings().impostoMensal === undefined) {
+        STORE.setImpostoMensal(impostoMensal);
+      }
+      if (reservaSplit && typeof reservaSplit === 'object' && STORE.getSettings().reservaSplit === undefined) {
+        STORE.setReservaSplit(reservaSplit);
       }
       if (Array.isArray(seenCharges) && seenCharges.length) {
         await STORE.saveSetting('seenCharges', [...new Set([...STORE.getSeenCharges(), ...seenCharges])]);
@@ -163,7 +169,7 @@ STORE.onReady(() => {
         const clients = Array.isArray(parsed) ? parsed : parsed.clients;
         if (!Array.isArray(clients)) throw new Error('não encontrei a lista de clientes nesse arquivo.');
         const settings = (parsed && parsed.settings) || {};
-        fileData = { clients, options: settings.options, salaryPct: settings.salaryPct, seenCharges: settings.seenCharges };
+        fileData = { clients, options: settings.options, salaryPct: settings.salaryPct, impostoMensal: settings.impostoMensal, reservaSplit: settings.reservaSplit, seenCharges: settings.seenCharges };
         document.getElementById('fileStats').innerHTML = statsHTML(clients, settings.options, settings.salaryPct);
         fileBtn.hidden = false;
       } catch (err) {
