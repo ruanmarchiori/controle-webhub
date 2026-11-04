@@ -42,7 +42,7 @@ importar.html     traz dados de um backup ou da versão antiga (localStorage)
 - `clientes.html` — lista de todos os clientes cadastrados, com busca.
 - `cliente.html` — cadastro/edição de um cliente (inclui telefone/WhatsApp, que aparece clicável no card da lista) (a "aba" de cada cliente), incluindo origem do cliente, a divisão percentual (agência/eu/dev, editável por cliente, com o valor de cada parte já calculado na tela), a situação financeira real e as parcelas de pagamento.
 - `financeiro.html` — visão financeira da empresa como um todo: valor total em caixa (recebido), repassado para devs, repassado para a agência e valor líquido — cada card clicável abre o detalhamento por cliente. Também tem a divisão do valor total (gráfico de rosca), o fechamento do mês (período escolhível) e a divisão "meu salário x caixa da empresa". Veja "Financeiro da empresa" abaixo.
-- `relatorio.html` — escolha um mês e baixe um PDF com o resumo financeiro do período (vendido, repassado, saldo, clientes fechados) e a lista de clientes daquele mês.
+- `relatorio.html` — escolha um mês e veja ou baixe em PDF o resumo do período e um cartão por projeto: início do projeto, data do 1º pagamento do cliente e a situação da parcela do cliente, da agência e do dev, com a data de cada pagamento. Uma parcela paga sem data registrada aparece como "sem data registrada", nunca com uma data estimada. O lucro não entra no PDF.
 - `configuracoes.html` — trocar sua senha, ativar o modo escuro, gerenciar as listas personalizadas e baixar/importar backup.
 - `importar.html` — importa clientes de um arquivo de backup ou os que ficaram no navegador na versão antiga do painel.
 

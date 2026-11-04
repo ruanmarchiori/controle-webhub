@@ -67,7 +67,7 @@ STORE.onReady(() => {
 
   /* Status de cada parcela que vence no mês. A 2ª só vence quando o cliente quita. */
   function etapaStatus(e) {
-    if (e.paga) return { texto: 'paga', cls: 'is-ok' };
+    if (e.paga) return { texto: e.dataPaga ? `paga em ${STORE.formatDate(e.dataPaga)}` : 'paga, sem data registrada', cls: 'is-ok' };
     if (e.n === 2 && !e.devida) return { texto: 'vence quando o cliente quitar', cls: '' };
     return { texto: 'a pagar', cls: 'is-pending' };
   }
@@ -98,10 +98,18 @@ STORE.onReady(() => {
         linhas.push(`<span class="rep-aviso">⚠ ${e.n}ª parcela ainda não foi paga</span>`);
       });
     } else if (p.anteriores.length) {
-      const ns = p.anteriores.map(e => `${e.n}ª`).join(' e ');
-      linhas.push(`<span class="rep-check">✓ ${ns} ${p.anteriores.length > 1 ? 'parcelas já pagas' : 'parcela já paga'}</span>`);
+      p.anteriores.forEach((e) => {
+        linhas.push(`<span class="rep-check">✓ ${e.n}ª parcela ${etapaStatus(e).texto}</span>`);
+      });
     }
     return linhas.join('');
+  }
+
+  /* Texto da data do primeiro pagamento do cliente no projeto (tela e PDF). */
+  function primeiroPagamentoTexto(c) {
+    const p = STORE.primeiroPagamento(c);
+    if (!p) return 'ainda não houve pagamento';
+    return p.data ? STORE.formatDate(p.data) : 'pago, sem data registrada';
   }
 
   function render() {
@@ -159,7 +167,7 @@ STORE.onReady(() => {
       const pcStatus = pc ? (pc.pago ? '<em class="is-ok">paga</em>' : '<em class="is-pending">a receber</em>') : '';
       return `
         <tr>
-          <td><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span class="rep-mudo">${STORE.esc(c.tipoProjeto || '—')} · ${statusLabel(c)}</span></td>
+          <td><strong>${STORE.esc(c.empresa || 'Sem nome')}</strong><span class="rep-mudo">${STORE.esc(c.tipoProjeto || '—')} · ${statusLabel(c)}</span><span class="rep-mudo">1º pagamento: ${primeiroPagamentoTexto(c)}</span></td>
           <td><span class="rep-linha"><b>${parcelaClienteTexto(pc)}</b> ${pcStatus}</span></td>
           <td>${STORE.formatBRL(f.valorTotal)}</td>
           <td>${parteHTML('agencia', c, sit)}</td>
@@ -181,6 +189,10 @@ STORE.onReady(() => {
   periodInput.addEventListener('input', render);
   render();
 
+  /* ===== PDF =====
+     Um cartão por projeto, com tudo dele junto: quando começou, quando o cliente pagou pela
+     primeira vez e, em linhas alinhadas, a parcela do cliente, da agência e do dev. O lucro
+     fica de fora de propósito: é informação pessoal e o PDF pode ser enviado a terceiros. */
   document.getElementById('downloadPdfBtn').addEventListener('click', () => {
     const period = periodInput.value;
     const entries = getMonthEntries(period);
@@ -188,176 +200,196 @@ STORE.onReady(() => {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
-    const LIME = [215, 251, 61];
-    const INK = [21, 22, 26];
-    const GRAY = [110, 110, 110];
-    const LIGHT = [247, 248, 250];
-    const BORDER = [225, 227, 231];
+    const COR = {
+      lime: [215, 251, 61], ink: [21, 22, 26], cinza: [105, 108, 115], claro: [246, 247, 249], borda: [222, 224, 229],
+      verde: [24, 122, 66], verdeFundo: [229, 247, 236], vermelho: [190, 45, 45], vermelhoFundo: [252, 234, 234], ambar: [166, 104, 8]
+    };
+    const LARGURA = doc.internal.pageSize.getWidth();
+    const ALTURA = doc.internal.pageSize.getHeight();
+    const MX = 14;
+    const CONTEUDO = LARGURA - MX * 2;
+    const LIMITE = ALTURA - 18;
+    const fonte = (peso, tamanho, cor) => { doc.setFont('helvetica', peso); doc.setFontSize(tamanho); doc.setTextColor(...cor); };
+    const agora = new Date();
+    const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const marginX = 16;
-    const contentWidth = pageWidth - marginX * 2;
+    /* Cabeçalho */
+    doc.setFillColor(...COR.lime);
+    doc.rect(0, 0, LARGURA, 26, 'F');
+    fonte('bold', 15, COR.ink);
+    doc.text('Relatório financeiro', MX, 13);
+    fonte('normal', 9, COR.ink);
+    doc.text('Controle Financeiro WebHub', MX, 19.5);
+    fonte('bold', 13, COR.ink);
+    doc.text(monthLabel(period), LARGURA - MX, 15, { align: 'right' });
 
-    /* ===== Cabeçalho (letterhead) ===== */
-    doc.setFillColor(...LIME);
-    doc.rect(0, 0, pageWidth, 30, 'F');
-    doc.setTextColor(...INK);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text('Controle Financeiro WebHub', marginX, 18);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5);
-    doc.text('Relatório financeiro mensal', marginX, 25);
-
-    let y = 44;
-    doc.setTextColor(...INK);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
-    doc.text(monthLabel(period), marginX, y);
-    y += 6;
-    doc.setDrawColor(...BORDER);
-    doc.line(marginX, y, pageWidth - marginX, y);
-    y += 11;
-
-    /* ===== Resumo financeiro (sem a parte do lucro/saldo, que é informação pessoal) ===== */
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12.5);
-    doc.text('Resumo financeiro', marginX, y);
-    y += 9;
-
-    const summaryRows = [
-      ['Clientes no período', String(s.count)],
-      ['Valor total vendido (entradas)', STORE.formatBRL(s.totalFechado)],
-      ['Recebido dos clientes', STORE.formatBRL(s.totalRecebido)],
-      ['Repassado para devs (saída)', STORE.formatBRL(s.totalDev)],
-      ['Repassado para a agência (saída)', STORE.formatBRL(s.totalAgencia)]
+    /* Resumo em quatro blocos */
+    let y = 33;
+    const blocos = [
+      ['Previsto no mês', STORE.formatBRL(s.totalFechado), `${s.count} ${s.count === 1 ? 'projeto' : 'projetos'}`],
+      ['Recebido dos clientes', STORE.formatBRL(s.totalRecebido), ''],
+      ['A receber', STORE.formatBRL(s.totalFechado - s.totalRecebido), ''],
+      ['Repassado no mês', STORE.formatBRL(s.totalDev + s.totalAgencia), `Agência ${STORE.formatBRL(s.totalAgencia)}\nDevs ${STORE.formatBRL(s.totalDev)}`]
     ];
-    doc.setFontSize(10.5);
-    summaryRows.forEach((row, i) => {
-      if (i % 2 === 0) {
-        doc.setFillColor(...LIGHT);
-        doc.rect(marginX, y - 5.5, contentWidth, 8.5, 'F');
+    const VAO = 3.5;
+    const larguraBloco = (CONTEUDO - VAO * 3) / 4;
+    const alturaBloco = 25;
+    blocos.forEach(([rotulo, valor, sub], i) => {
+      const x = MX + i * (larguraBloco + VAO);
+      doc.setFillColor(...COR.claro);
+      doc.roundedRect(x, y, larguraBloco, alturaBloco, 2, 2, 'F');
+      fonte('normal', 8, COR.cinza);
+      doc.text(rotulo, x + 3.5, y + 6);
+      fonte('bold', 12, COR.ink);
+      doc.text(valor, x + 3.5, y + 12.5);
+      if (sub) {
+        fonte('normal', 7.5, COR.cinza);
+        doc.text(sub.split('\n'), x + 3.5, y + 17.5);
       }
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...GRAY);
-      doc.text(row[0], marginX + 3, y);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...INK);
-      doc.text(row[1], pageWidth - marginX - 3, y, { align: 'right' });
-      y += 8.5;
     });
-    y += 10;
+    y += alturaBloco + 5;
 
-    /* ===== Tabela de clientes do período ===== */
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12.5);
-    doc.setTextColor(...INK);
-    doc.text('Clientes do período', marginX, y);
-    y += 9;
-
-    if (!entries.length) {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10.5);
-      doc.setTextColor(...GRAY);
-      doc.text('Nenhum valor previsto nesse período.', marginX, y);
-    } else {
-      const cols = [
-        { label: 'Empresa', width: contentWidth * 0.24, get: ({ c }) => c.empresa || 'Sem nome' },
-        { label: 'Tipo de projeto', width: contentWidth * 0.20, get: ({ c }) => c.tipoProjeto || '—' },
-        { label: 'Parcela', width: contentWidth * 0.16, get: ({ c }) => parcelaClienteTexto(STORE.situacaoMes(c, period).parcelaCliente) },
-        { label: 'Valor', width: contentWidth * 0.14, get: ({ f }) => STORE.formatBRL(f.valorTotal) },
-        { label: 'Status', width: contentWidth * 0.16, get: ({ c }) => statusLabel(c) },
-        { label: 'Origem', width: contentWidth * 0.10, get: ({ c }) => c.origem || '—' }
-      ];
-      const headerRowH = 9;
-      const lineH = 4.4;
-
-      function drawTableHeader() {
-        doc.setFillColor(...INK);
-        doc.rect(marginX, y - 6, contentWidth, headerRowH, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.setTextColor(255, 255, 255);
-        let x = marginX + 3;
-        cols.forEach(col => { doc.text(col.label.toUpperCase(), x, y); x += col.width; });
-        y += headerRowH;
+    /* Quadro dos repasses atrasados (ou "em dia") */
+    const atrasos = entries.flatMap(({ c }) => avisosAtraso(c, STORE.situacaoMes(c, period)).map(t => `${c.empresa || 'Sem nome'}: ${t}`));
+    if (entries.length) {
+      fonte('normal', 8.5, COR.ink);
+      const linhas = atrasos.flatMap(t => doc.splitTextToSize(t, CONTEUDO - 8));
+      const alturaQuadro = atrasos.length ? 10 + linhas.length * 4.2 : 9;
+      doc.setFillColor(...(atrasos.length ? COR.vermelhoFundo : COR.verdeFundo));
+      doc.roundedRect(MX, y, CONTEUDO, alturaQuadro, 2, 2, 'F');
+      fonte('bold', 9, atrasos.length ? COR.vermelho : COR.verde);
+      doc.text(atrasos.length ? `Repasses atrasados (${atrasos.length})` : 'Repasses em dia', MX + 4, y + 5.8);
+      if (atrasos.length) {
+        fonte('normal', 8.5, COR.ink);
+        doc.text(linhas, MX + 4, y + 10.5);
       }
-      drawTableHeader();
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9.5);
-      entries.forEach((entry, i) => {
-        /* Cada célula pode quebrar em mais de uma linha (nome de empresa comprido, tipo de
-           projeto customizado etc.) — a linha inteira nunca corta texto, a altura da linha
-           da tabela se ajusta pra caber a maior célula daquela linha. */
-        const cellLines = cols.map(col => doc.splitTextToSize(String(col.get(entry)), col.width - 5));
-        const maxLines = Math.max(1, ...cellLines.map(lines => lines.length));
-        const thisRowH = Math.max(9, maxLines * lineH + 4.5);
-
-        if (y + thisRowH - 6 > pageHeight - 20) { doc.addPage(); y = 24; drawTableHeader(); }
-        if (i % 2 === 0) {
-          doc.setFillColor(...LIGHT);
-          doc.rect(marginX, y - 6, contentWidth, thisRowH, 'F');
-        }
-        doc.setTextColor(...INK);
-        let x = marginX + 3;
-        cols.forEach((col, idx) => {
-          doc.text(cellLines[idx], x, y);
-          x += col.width;
-        });
-        y += thisRowH;
-      });
-      doc.setDrawColor(...BORDER);
-      doc.line(marginX, y - 6, pageWidth - marginX, y - 6);
-
-      /* ===== Parcelas da agência e dos devs (o que vence no mês + atrasos) ===== */
-      y += 8;
-      if (y > pageHeight - 50) { doc.addPage(); y = 24; }
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12.5);
-      doc.setTextColor(...INK);
-      doc.text('Parcelas da agência e dos devs', marginX, y);
-      y += 8;
-      const RED = [205, 60, 60];
-      const GREEN = [30, 138, 76];
-      entries.forEach(({ c }) => {
-        const sit = STORE.situacaoMes(c, period);
-        const linhas = [];
-        [['agencia', 'Agência'], ['dev', c.devResponsavel ? `Dev (${c.devResponsavel})` : 'Dev']].forEach(([quem, rotulo]) => {
-          const p = sit.partes[quem];
-          if (!p) return;
-          const vence = p.vence.map(e => `${e.n}ª parcela ${STORE.formatBRL(e.valor)} (${etapaStatus(e).texto})`).join(' · ');
-          linhas.push({ texto: `${rotulo}: ${vence || 'nenhuma parcela vence no mês'}`, cor: INK });
-          p.atrasadas.forEach(e => linhas.push({ texto: `   A ${e.n}ª parcela ${nomeParte(quem, c)} ainda não foi paga (${STORE.formatBRL(e.valor)}).`, cor: RED }));
-          if (!p.atrasadas.length && p.anteriores.length) linhas.push({ texto: `   Parcela anterior paga.`, cor: GREEN });
-        });
-        if (!linhas.length) return;
-        if (y + 6 + linhas.length * 5 > pageHeight - 20) { doc.addPage(); y = 24; }
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.setTextColor(...INK);
-        doc.text(c.empresa || 'Sem nome', marginX, y);
-        y += 5.5;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9.5);
-        linhas.forEach((l) => {
-          doc.setTextColor(...l.cor);
-          doc.splitTextToSize(l.texto, contentWidth - 6).forEach((t) => { doc.text(t, marginX + 3, y); y += 5; });
-        });
-        y += 3;
-      });
+      y += alturaQuadro + 7;
     }
 
-    /* ===== Rodapé em todas as páginas ===== */
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let p = 1; p <= pageCount; p++) {
+    fonte('bold', 11.5, COR.ink);
+    doc.text('Projetos do mês', MX, y);
+    y += 4.5;
+
+    if (!entries.length) {
+      fonte('normal', 10, COR.cinza);
+      doc.text('Nenhum valor previsto nesse período.', MX, y + 5);
+    }
+
+    /* Linhas do cartão: a parcela do cliente e as parcelas de agência e dev. */
+    function situacaoCliente(p) {
+      if (p.pago) return { texto: p.pagoEm ? `Paga em ${STORE.formatDate(p.pagoEm)}` : 'Paga, sem data registrada', cor: COR.verde };
+      if (p.data && p.data < hoje) return { texto: `Atrasada, venceu em ${STORE.formatDate(p.data)}`, cor: COR.vermelho };
+      return { texto: p.data ? `A receber, vence em ${STORE.formatDate(p.data)}` : 'A receber', cor: COR.ambar };
+    }
+    function situacaoRepasse(e) {
+      if (e.paga) return { texto: e.dataPaga ? `Paga em ${STORE.formatDate(e.dataPaga)}` : 'Paga, sem data registrada', cor: COR.verde };
+      if (e.n === 2 && !e.devida) return { texto: 'Vence quando o cliente quitar', cor: COR.cinza };
+      if (e.mes < period) return { texto: 'Atrasada, ainda não foi paga', cor: COR.vermelho };
+      return { texto: 'A pagar neste mês', cor: COR.ambar };
+    }
+    function linhasDoProjeto(c, sit) {
+      const linhas = [];
+      const pc = sit.parcelaCliente;
+      (pc ? pc.parcelas : []).forEach((p) => {
+        linhas.push({ quem: 'Cliente', parcela: pc.avista ? 'À vista' : `Parcela ${p.n} de ${pc.de}`, valor: p.valor, ...situacaoCliente(p) });
+      });
+      [['agencia', 'Agência'], ['dev', c.devResponsavel ? `Dev (${c.devResponsavel})` : 'Dev']].forEach(([quem, rotulo]) => {
+        const parte = sit.partes[quem];
+        if (!parte) return;
+        const etapas = [...parte.anteriores, ...parte.vence].sort((a, b) => a.n - b.n);
+        if (!etapas.length) linhas.push({ quem: rotulo, parcela: '—', valor: null, texto: 'Nenhuma parcela vence no mês', cor: COR.cinza });
+        etapas.forEach((e) => linhas.push({ quem: rotulo, parcela: `${e.n}ª parcela`, valor: e.valor, ...situacaoRepasse(e) }));
+      });
+      return linhas;
+    }
+
+    const COLUNAS = [
+      { titulo: 'Quem', x: 4, largura: 40 },
+      { titulo: 'Parcela', x: 45, largura: 27 },
+      { titulo: 'Valor', x: 73, largura: 25 },
+      { titulo: 'Situação', x: 99, largura: CONTEUDO - 103 }
+    ];
+    const ALTURA_LINHA = 5.6;
+
+    entries.forEach(({ c, f }) => {
+      const sit = STORE.situacaoMes(c, period);
+      const linhas = linhasDoProjeto(c, sit).map((l) => {
+        fonte('normal', 8.5, COR.ink);
+        return { ...l, quemLinhas: doc.splitTextToSize(l.quem, COLUNAS[0].largura) };
+      });
+      fonte('bold', 10.5, COR.ink);
+      const nome = doc.splitTextToSize(c.empresa || 'Sem nome', CONTEUDO - 44);
+      const detalhes = [c.tipoProjeto, statusLabel(c), c.origem ? `Origem: ${c.origem}` : ''].filter(Boolean).join(' · ');
+      fonte('normal', 8, COR.cinza);
+      const detalhesLinhas = doc.splitTextToSize(detalhes, CONTEUDO - 44);
+      const alturaTopo = 3 + nome.length * 4.6 + detalhesLinhas.length * 3.6 + 1.5;
+      const alturaLinhas = linhas.reduce((t, l) => t + Math.max(ALTURA_LINHA, l.quemLinhas.length * 3.8 + 1.8), 0);
+      const alturaCartao = alturaTopo + 8.5 + 6 + alturaLinhas + 2;
+
+      if (y + alturaCartao > LIMITE) { doc.addPage(); y = 16; }
+
+      doc.setFillColor(...COR.claro);
+      doc.roundedRect(MX, y, CONTEUDO, alturaTopo, 2, 2, 'F');
+      doc.rect(MX, y + alturaTopo - 2, CONTEUDO, 2, 'F');
+      doc.setDrawColor(...COR.borda);
+      doc.setLineWidth(0.25);
+      doc.roundedRect(MX, y, CONTEUDO, alturaCartao, 2, 2, 'S');
+
+      /* Topo: empresa, detalhes e o valor do mês */
+      let cy = y + 5.5;
+      fonte('bold', 10.5, COR.ink);
+      doc.text(nome, MX + 4, cy);
+      doc.text(STORE.formatBRL(f.valorTotal), LARGURA - MX - 4, cy, { align: 'right' });
+      fonte('normal', 7.5, COR.cinza);
+      doc.text('no mês', LARGURA - MX - 4, cy + 3.8, { align: 'right' });
+      cy += nome.length * 4.6 - 0.6;
+      fonte('normal', 8, COR.cinza);
+      doc.text(detalhesLinhas, MX + 4, cy);
+      cy = y + alturaTopo + 5.6;
+
+      /* As duas datas do projeto */
+      const data = (rotulo, valor, x) => {
+        fonte('normal', 8.5, COR.cinza);
+        doc.text(rotulo, x, cy);
+        const w = doc.getTextWidth(rotulo + ' ');
+        fonte('bold', 8.5, COR.ink);
+        doc.text(valor, x + w, cy);
+      };
+      data('Início do projeto:', STORE.formatDate(c.dataInicio), MX + 4);
+      data('1º pagamento do cliente:', primeiroPagamentoTexto(c), MX + 58);
+      cy += 3;
+      doc.line(MX + 4, cy, LARGURA - MX - 4, cy);
+      cy += 4;
+
+      /* Linhas alinhadas */
+      fonte('bold', 7, COR.cinza);
+      COLUNAS.forEach(col => doc.text(col.titulo.toUpperCase(), MX + col.x, cy));
+      cy += 1.6;
+      linhas.forEach((l, i) => {
+        const h = Math.max(ALTURA_LINHA, l.quemLinhas.length * 3.8 + 1.8);
+        const base = cy + 3.9;
+        fonte('normal', 8.5, COR.ink);
+        doc.text(l.quemLinhas, MX + COLUNAS[0].x, base);
+        doc.text(l.parcela, MX + COLUNAS[1].x, base);
+        if (l.valor !== null) doc.text(STORE.formatBRL(l.valor), MX + COLUNAS[2].x, base);
+        fonte('bold', 8.5, l.cor);
+        doc.text(l.texto, MX + COLUNAS[3].x, base);
+        cy += h;
+        if (i < linhas.length - 1 && linhas[i + 1].quem !== l.quem) {
+          doc.setDrawColor(...COR.borda);
+          doc.line(MX + 4, cy, LARGURA - MX - 4, cy);
+        }
+      });
+      y += alturaCartao + 5;
+    });
+
+    /* Rodapé em todas as páginas */
+    const paginas = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= paginas; p++) {
       doc.setPage(p);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(160);
-      doc.text(`Controle Financeiro WebHub • gerado em ${new Date().toLocaleDateString('pt-BR')}`, marginX, pageHeight - 10);
-      doc.text(`Página ${p} de ${pageCount}`, pageWidth - marginX, pageHeight - 10, { align: 'right' });
+      fonte('normal', 8, [160, 160, 160]);
+      doc.text(`Controle Financeiro WebHub • gerado em ${agora.toLocaleDateString('pt-BR')}`, MX, ALTURA - 9);
+      doc.text(`Página ${p} de ${paginas}`, LARGURA - MX, ALTURA - 9, { align: 'right' });
     }
 
     doc.save(`relatorio-${period}.pdf`);

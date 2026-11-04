@@ -573,9 +573,9 @@ const STORE = (function () {
         .map(p => ({ ...p, data: p.data || '' }))
         .sort((a, b) => a.data.localeCompare(b.data));
       const doMes = lista
-        .map((p, i) => ({ n: i + 1, valor: parseFloat(p.valor) || 0, pago: !!p.pago, data: p.data }))
+        .map((p, i) => ({ n: i + 1, valor: parseFloat(p.valor) || 0, pago: !!p.pago, data: p.data, pagoEm: p.pago ? (p.pagoEm || '') : '' }))
         .filter(p => p.data.slice(0, 7) === period);
-      if (doMes.length) parcelaCliente = { numeros: doMes.map(p => p.n), de: lista.length, valor: doMes.reduce((s, p) => s + p.valor, 0), pago: doMes.every(p => p.pago) };
+      if (doMes.length) parcelaCliente = { numeros: doMes.map(p => p.n), de: lista.length, valor: doMes.reduce((s, p) => s + p.valor, 0), pago: doMes.every(p => p.pago), parcelas: doMes };
       /* Quitou: mês do último pagamento de fato. Ainda não: mês da última parcela prevista. */
       const datas = quitado
         ? lista.filter(p => p.pago).map(p => (p.pagoEm || p.data))
@@ -584,7 +584,7 @@ const STORE = (function () {
       if (ultima) quitacaoMes = ultima.slice(0, 7);
     } else {
       if (quitado && client.clientePagoEm) quitacaoMes = client.clientePagoEm.slice(0, 7);
-      if (inicioMes === period) parcelaCliente = { numeros: [], de: 0, valor: parseFloat(client.valor) || 0, pago: quitado, avista: true };
+      if (inicioMes === period) parcelaCliente = { numeros: [], de: 0, valor: parseFloat(client.valor) || 0, pago: quitado, avista: true, parcelas: [{ n: 0, valor: parseFloat(client.valor) || 0, pago: quitado, data: client.dataInicio || '', pagoEm: quitado ? (client.clientePagoEm || '') : '' }] };
     }
 
     const split = splitValues(client);
@@ -596,10 +596,23 @@ const STORE = (function () {
       if (!(total > 0.005)) return;
       const etapa = total * ETAPA_INICIO;
       const pago = repassado[quem];
+      /* Cada parcela do repasse fica paga na data do lançamento que completou o valor dela. */
+      const lancamentos = repasseEntries(client, quem).slice().sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+      const dataPaga = (alvo) => {
+        let soma = 0;
+        for (const r of lancamentos) {
+          soma += r.valor;
+          if (soma >= alvo - 0.01) return r.data || '';
+        }
+        return '';
+      };
       const etapas = [
         { n: 1, mes: inicioMes, devida: comecou },
         { n: 2, mes: quitacaoMes, devida: quitado }
-      ].map(e => ({ ...e, valor: etapa, paga: pago >= etapa * e.n - 0.01 }));
+      ].map(e => {
+        const paga = pago >= etapa * e.n - 0.01;
+        return { ...e, valor: etapa, paga, dataPaga: paga ? dataPaga(etapa * e.n) : '' };
+      });
       const anteriores = etapas.filter(e => e.mes && e.mes < period && e.devida);
       partes[quem] = {
         total,
@@ -611,6 +624,19 @@ const STORE = (function () {
     });
 
     return { parcelaCliente, quitado, partes };
+  }
+
+  /* O primeiro pagamento que o cliente fez no projeto. Null: ainda não pagou nada. Sem data
+     registrada, devolve data vazia em vez de usar o vencimento: uma data de pagamento
+     inventada no relatório seria pior do que dizer que ela falta. */
+  function primeiroPagamento(client) {
+    if (client.tipoPagamento === 'parcelado') {
+      const primeira = (client.parcelas || [])
+        .filter(p => p.pago)
+        .sort((a, b) => (a.data || '').localeCompare(b.data || ''))[0];
+      return primeira ? { data: primeira.pagoEm || '' } : null;
+    }
+    return client.clientePago ? { data: client.clientePagoEm || '' } : null;
   }
 
   function totals() {
@@ -797,7 +823,7 @@ const STORE = (function () {
     onReady, request, isLocal: IS_LOCAL,
     getAll, getById, blankClient, upsert, remove, importClients,
     splitValues, splitPercents, isSplitPorValor, repasses, repasseEntries, repasseResumo, clienteQuitou, projetoComecou, fracaoVencida,
-    valorRecebido, financeiro, financeiroPorMes, situacaoMes, totals, initials, esc, whatsappLink, safeUrl, formatBRL, formatDate, getDueCharges,
+    valorRecebido, financeiro, financeiroPorMes, situacaoMes, primeiroPagamento, totals, initials, esc, whatsappLink, safeUrl, formatBRL, formatDate, getDueCharges,
     chargeKey, getSeenCharges, markChargesSeen, cobrancaPendente,
     getOptions, addOption, removeOption, isProtectedOption,
     getSalaryPct, setSalaryPct, getImpostoMensal, setImpostoMensal, getReservaSplit, setReservaSplit, saveSetting, getSettings, DEFAULT_SALARY_PCT,
